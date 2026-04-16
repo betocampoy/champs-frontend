@@ -1,4 +1,5 @@
 import DomPatch from './DomPatch.js';
+import { initActionRules, runUiActions, runActionRules, runNamedActionRules } from './ActionRules.js';
 
 // ✅ Suporta gatilhos: click (default), change, input
 // ✅ Suporta confirm modal automático (data-champs-ajax-confirm)
@@ -43,6 +44,12 @@ import DomPatch from './DomPatch.js';
 //    - data-champs-ajax-include-champs-filter="#seletor" => busca apenas dentro do seletor
 //    - ignora champs_filter_label_*
 //    - sobrescreve campos champs_filter_* já existentes no payload
+//
+// ✅ NOVO: integração com ActionRules
+//    - action "ui-actions" => executa ações prontas de UI
+//    - action "action-rules" => executa regras declarativas inline
+//    - action "named-action-rules" => executa regra registrada em window.ChampsPageActions
+//    - reinit do core após dom-patch
 
 import Message from './Message.js';
 import { applyValidationError } from './ValidationError.js';
@@ -115,6 +122,14 @@ export function initAjaxForm(scope = document) {
 
         await handleAjax(trigger);
     });
+
+    initActionRules(scope);
+
+    window.Champs = window.Champs || {};
+    window.Champs.AjaxForm = {
+        handleAjax,
+        executeActions: (actions, triggerEl) => executeActions(actions, triggerEl),
+    };
 }
 
 /* ============================= */
@@ -437,9 +452,39 @@ async function executeAction(action, triggerEl, ctx) {
             return false;
         }
 
-        case 'dom-patch':
-            await DomPatch.execute(action, ctx);
-            break;
+        case 'dom-patch': {
+            const patchScope = resolveActionExecutionScope(triggerEl, action);
+            await DomPatch.execute(action, {
+                ...ctx,
+                scope: patchScope,
+            });
+            afterDomMutation(patchScope);
+            return false;
+        }
+
+        case 'ui-actions': {
+            runUiActions(
+                Array.isArray(action.actions) ? action.actions : [],
+                buildActionRulesOptions(triggerEl, action)
+            );
+            return false;
+        }
+
+        case 'action-rules': {
+            runActionRules(
+                Array.isArray(action.rules) ? action.rules : [],
+                buildActionRulesOptions(triggerEl, action)
+            );
+            return false;
+        }
+
+        case 'named-action-rules': {
+            runNamedActionRules(
+                action.name || '',
+                buildActionRulesOptions(triggerEl, action)
+            );
+            return false;
+        }
 
         default:
             console.warn('[AjaxForm] Action type não suportada:', type, action);
@@ -687,7 +732,7 @@ function resolveChampsFilterSource(triggerEl) {
     if (value === '' || value === 'true') {
         return document;
     }
-    // ✔ caso: seletor
+
     const target = document.querySelector(attr);
     if (target) {
         return target;
@@ -807,6 +852,47 @@ function buildFormData(triggerEl) {
     }
 
     return { fd, route, method };
+}
+
+/* ============================= */
+/*  ACTION RULES HELPERS         */
+/* ============================= */
+
+function resolveActionExecutionScope(triggerEl, action = {}) {
+    const explicitScope = action.scope || action.targetScope || '';
+
+    if (explicitScope) {
+        const found = findTargetElement(explicitScope);
+        if (found) {
+            return found;
+        }
+    }
+
+    return (
+        resolveInputScope(triggerEl) ||
+        triggerEl?.closest?.('.modal') ||
+        triggerEl?.closest?.('.champs-modal') ||
+        triggerEl?.closest?.('.offcanvas') ||
+        triggerEl?.closest?.('.tab-pane') ||
+        triggerEl?.closest?.('.card') ||
+        document
+    );
+}
+
+function buildActionRulesOptions(triggerEl, action = {}) {
+    return {
+        scope: resolveActionExecutionScope(triggerEl, action),
+        element: triggerEl,
+        extra: action.context || {},
+    };
+}
+
+function afterDomMutation(scope = document) {
+    initActionRules(scope);
+
+    if (window.Champs && typeof window.Champs.init === 'function') {
+        window.Champs.init(scope);
+    }
 }
 
 /* ============================= */
