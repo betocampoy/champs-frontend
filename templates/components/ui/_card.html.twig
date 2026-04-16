@@ -1,0 +1,39 @@
+{# props:
+  header (string|raw|null)
+  body (string|raw)
+  footer (string|raw|null)
+  class (string|null)
+  wrapperId (string|null)
+  wrapperClass (string|null)
+#}
+
+{% set hasWrapper = (wrapperId is defined and wrapperId) or (wrapperClass is defined and wrapperClass) %}
+
+{% if hasWrapper %}
+<div
+        {% if wrapperId is defined and wrapperId %}id="{{ wrapperId }}"{% endif %}
+        {% if wrapperClass is defined and wrapperClass %}class="{{ wrapperClass }}"{% endif %}
+>
+    {% endif %}
+
+    <div class="card h-100 {{ class|default('') }}">
+        {% if header is defined and header %}
+            <div class="card-header">
+                {{ header|raw }}
+            </div>
+        {% endif %}
+
+        <div class="card-body">
+            {{ body|raw }}
+        </div>
+
+        {% if footer is defined and footer %}
+            <div class="card-footer">
+                {{ footer|raw }}
+            </div>
+        {% endif %}
+    </div>
+
+    {% if hasWrapper %}
+</div>
+{% endif %}

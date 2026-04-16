@@ -1,0 +1,49 @@
+<div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
+    <div>
+        <h4 class="mb-1">{{ title|default('Listagem') }}</h4>
+
+        {% if subtitle is defined and subtitle %}
+            <div class="text-muted small">{{ subtitle }}</div>
+        {% endif %}
+    </div>
+
+    <div class="d-flex flex-wrap align-items-center gap-2 ms-md-auto">
+        {% if counter is defined %}
+            <span class="badge rounded-pill text-bg-secondary">
+                {{ counter }} registro(s)
+            </span>
+        {% endif %}
+
+        {% if viewToggleUrl is defined and viewToggleUrl %}
+            {% set currentViewMode = viewMode|default('grid') %}
+
+            <div class="btn-group" role="group" aria-label="Modo de visualização">
+                <a href="{{ viewToggleUrl }}?viewMode=grid{% if queryString is defined and queryString %}&{{ queryString }}{% endif %}"
+                   class="btn btn-sm {{ currentViewMode == 'grid' ? 'btn-primary' : 'btn-outline-primary' }}"
+                        {% if preferenceKeySufix is defined and preferenceKeySufix %}
+                            data-champs-preference-key="list:view:{{ preferenceKeySufix }}"
+                            data-champs-preference-value="grid"
+                            data-champs-preference-storage="cookie"
+                        {% endif %}
+                   title="Visualizar em grade">
+                    <i class="bi bi-grid-3x3-gap"></i>
+                </a>
+
+                <a href="{{ viewToggleUrl }}?viewMode=table{% if queryString is defined and queryString %}&{{ queryString }}{% endif %}"
+                   class="btn btn-sm {{ currentViewMode == 'table' ? 'btn-primary' : 'btn-outline-primary' }}"
+                        {% if preferenceKeySufix is defined and preferenceKeySufix %}
+                            data-champs-preference-key="list:view:{{ preferenceKeySufix }}"
+                            data-champs-preference-value="table"
+                            data-champs-preference-storage="cookie"
+                        {% endif %}
+                   title="Visualizar em tabela">
+                    <i class="bi bi-table"></i>
+                </a>
+            </div>
+        {% endif %}
+
+        {% if actions is defined and actions %}
+            {{ actions|raw }}
+        {% endif %}
+    </div>
+</div>

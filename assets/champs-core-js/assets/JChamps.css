@@ -1,0 +1,359 @@
+
+/**************************
+ ***   ROOT VARIABLES   ***
+ **************************/
+
+:root {
+    --font-min: 0.8em;
+    --font-small: 0.875em;
+    --font-normal: 1em;
+    --font-medium: 1.2em;
+    --font-large: 1.4em;
+    --font-max: 2em;
+
+    --color-default: #555555;
+    --color-green: #36BA9B;
+    --color-blue: #39AED9;
+    --color-yellow: #F5B946;
+    --color-red: #ef0a0a;
+    --color-fsphp: #1D2025;
+
+    --weight-light: 300;
+    --weight-normal: 400;
+    --weight-strong: 600;
+    --weight-bold: 700;
+    --weight-black: 900;
+
+    --hover-color-green: #61DDBC;
+    --hover-color-blue: #66D4F1;
+    --hover-color-yellow: #FCD277;
+    --hover-color-red: #f76c82;
+    --hover-duration: 0.3s;
+
+    --gradient-green: linear-gradient(to right, #42E695 0%, #3BB2B8 50%, #42E695 100%);
+    --gradient-blue: linear-gradient(to right, #17EAD9 0%, #6078EA 50%, #17EAD9 100%);
+    --gradient-red: linear-gradient(to right, #640303 0%, #d91e1e 50%, #622744 100%);
+    --gradient-yellow: linear-gradient(to right, #FCE38A 0%, #F38181 50%, #FCE38A 100%);
+
+    --radius-normal: 5px;
+    --radius-medium: 10px;
+    --radius-large: 20px;
+    --radius-round: 50%;
+
+    --index-back: -1;
+    --index-fold: 2;
+    --index-menu: 3;
+    --index-modal: 4;
+}
+
+/***************************
+ ***   BOX LOAD EFFECT   ***
+ ***************************/
+
+.champs_load {
+    display: none;
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: calc(4 * 2);
+}
+
+.champs_load_box {
+    margin: auto;
+    text-align: center;
+    color: #ffffff;
+    font-weight: bold;
+    text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.5);
+}
+
+.champs_load_box_circle {
+    border: 16px solid #e3e3e3;
+    border-top: 16px solid #000;
+    border-radius: 50%;
+    margin: auto;
+    width: 80px;
+    height: 80px;
+
+    -webkit-animation: spin 1.2s linear infinite;
+    -o-animation: spin 1.2s linear infinite;
+    animation: spin 1.2s linear infinite;
+}
+
+.champs_load_box_title {
+    margin-top: 15px;
+    font-weight: bolder;
+}
+
+@-webkit-keyframes spin {
+    0% {
+        -webkit-transform: rotate(0deg);
+    }
+    100% {
+        -webkit-transform: rotate(360deg);
+    }
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+/************************
+ ***   FORM CONTROL   ***
+/***********************/
+
+.champs-allow-enter-submit{}
+
+/**************************************
+ ***   SELECT/UNSELECT CHECKBOXES   ***
+ **************************************/
+
+.champs_checkbox_parent_select{}
+.champs_checkbox_child_select{}
+
+
+/**************************
+ ***   ZIPCODE SEARCH   ***
+ **************************/
+
+.champs_zipcode_search {}
+.champs_zipcode_search_street {}
+.champs_zipcode_search_city {}
+.champs_zipcode_search_state {}
+.champs_zipcode_search_neighborhood {}
+
+
+/********************
+ ***   SEND POST   ***
+ ********************/
+
+.champs_send_post_on_update{}
+.champs_send_post_on_click{}
+.champs_send_form_as_ajax{}
+
+/***************************
+ ***   ANIMATE MESSAGE   ***
+ ***************************/
+
+.champs_message{
+    position: relative;
+}
+.champs_post_response{}
+.champs_message_time{}
+.champs_success {}
+.champs_info {}
+.champs_warning {}
+.champs_error {}
+
+.champs_post_response {
+    position: fixed;
+    padding: 20px 20px 0 0;
+    z-index: 998;
+
+    top: 0;
+    right: 0;
+    width: 300px;
+    max-width: 100%;
+}
+
+.champs_post_response .champs_message {
+    color: #FFF !important;
+    font-size: 0.8em;
+    font-weight: normal;
+    overflow: hidden;
+    border: none;
+
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding: 15px 15px 20px 15px;
+    background: #333333;
+    margin-bottom: 15px;
+    position: relative;
+
+    -webkit-border-radius: 5px;
+    -moz-border-radius: 5px;
+    border-radius: 5px;
+
+    cursor: pointer;
+}
+
+.champs_post_response .champs_message:before {
+    flex-basis: 0;
+    margin: -5px 15px 0 0 !important;
+    font-size: calc(2em * 1.2);
+    color: rgba(0, 0, 0, 0.5);
+}
+
+.champs_message_time {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 4%;
+    height: 5px;
+    background: rgba(0, 0, 0, 0.5);
+}
+
+.champs_post_response .champs_message.champs_success {
+    background: #36BA9B;
+}
+
+.champs_post_response .champs_message.champs_info {
+    background: #39AED9;
+}
+
+.champs_post_response .champs_message.champs_warning {
+    background: #F5B946;
+}
+
+.champs_post_response .champs_message.champs_error {
+    background: #ef0a0a;
+}
+
+@media (max-width: 34em) {
+    .champs_post_response {
+        width: 100%;
+        padding: 20px 20px 0 20px;
+    }
+}
+
+/*****************
+ ***   MODAL   ***
+ *****************/
+
+#champs_modal_fade {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6);
+    z-index: 5;
+}
+
+#champs_modal {
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 700px;
+    max-width: 90%;
+    background-color: #fff;
+    padding: 1.2rem;
+    border-radius: 0.5rem;
+    z-index: 10;
+}
+
+#champs_modal_fade,
+#champs_modal {
+    transition: 0.5s;
+    opacity: 1;
+    pointer-events: all;
+}
+
+.champs_modal_header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #ccc;
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+}
+
+.champs_modal_body p {
+    margin-bottom: 1rem;
+}
+
+#champs_modal.hide,
+#champs_modal_fade.hide {
+    opacity: 0;
+    pointer-events: none;
+}
+
+#champs_modal.hide {
+    top: 0;
+}
+
+
+/*******************************
+ ***   NOTIFICATION CENTER   ***
+ *******************************/
+
+.champs_notification_center {
+    position: fixed;
+    display: none;
+    right: -320px;
+    top: 0;
+    max-width: 320px;
+    height: 100%;
+    overflow-y: scroll;
+    padding: 20px;
+    background: #FBFBFB;
+    z-index: var(--index-menu);
+}
+
+.champs_notification_center_item {
+    display: flex;
+    align-items: flex-start;
+    font-size: var(--font-small);
+    font-weight: var(--weight-strong);
+    margin-bottom: 15px;
+    border: 1px solid var(--color-default);
+    border-bottom: 4px solid var(--color-default);
+    padding: 20px;
+    background: #FFFFFF;
+    cursor: pointer;
+    opacity: 0.7;
+}
+
+.champs_notification_center .unread {
+    border: 1px solid var(--color-red);
+    border-bottom: 4px solid var(--color-red);
+}
+
+.champs_notification_center_item .time {
+    font-size: var(--font-small);
+    margin-top: 5px;
+    color: #888888;
+}
+
+.champs_notification_center_item .image {
+    flex-basis: 15%;
+    -webkit-border-radius: var(--radius-round);
+    -moz-border-radius: var(--radius-round);
+    border-radius: var(--radius-round);
+}
+
+.champs_notification_center_item .info {
+    flex-basis: 85%;
+    padding-left: 15px;
+}
+
+.champs_notification_center_item.read {
+    opacity: 0.3;
+}
+
+.champs_notification_center_item:hover {
+    opacity: 1;
+}
+
+.champs_notification_center_item:last-child {
+    margin: 0;
+}
+
+.champs_notification_center_open {
+    cursor: pointer;
+}
+
+.champs-copied {
+    outline: 2px solid #198754;
+    background-color: #e6ffee;
+}

@@ -1,0 +1,90 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+$autoloadCandidates = [
+    dirname(__DIR__, 3) . '/autoload.php',
+    dirname(__DIR__, 4) . '/vendor/autoload.php',
+    getcwd() . '/vendor/autoload.php',
+];
+
+$autoloadPath = null;
+foreach ($autoloadCandidates as $candidate) {
+    if (is_file($candidate)) {
+        $autoloadPath = $candidate;
+        break;
+    }
+}
+
+if ($autoloadPath === null) {
+    fwrite(STDERR, "Não foi possível localizar o autoload do Composer.
+");
+    exit(1);
+}
+
+require $autoloadPath;
+
+use BetoCampoy\Champs\Frontend\Package;
+
+$destination = $argv[1] ?? null;
+if (!$destination) {
+    fwrite(STDERR, "Uso: php vendor/bin/champs-frontend-publish-assets <destino>
+");
+    exit(1);
+}
+
+$source = Package::assetsPath();
+$destination = rtrim($destination, DIRECTORY_SEPARATOR);
+
+if (!is_dir($source)) {
+    fwrite(STDERR, "Pasta de assets não encontrada: {$source}
+");
+    exit(1);
+}
+
+if (!is_dir($destination) && !mkdir($destination, 0777, true) && !is_dir($destination)) {
+    fwrite(STDERR, "Não foi possível criar a pasta de destino: {$destination}
+");
+    exit(1);
+}
+
+$copyDirectory = function (string $from, string $to) use (&$copyDirectory): void {
+    if (!is_dir($to) && !mkdir($to, 0777, true) && !is_dir($to)) {
+        throw new RuntimeException("Não foi possível criar a pasta: {$to}");
+    }
+
+    $items = scandir($from);
+    if ($items === false) {
+        throw new RuntimeException("Não foi possível ler a pasta: {$from}");
+    }
+
+    foreach ($items as $item) {
+        if ($item === '.' || $item === '..') {
+            continue;
+        }
+
+        $src = $from . DIRECTORY_SEPARATOR . $item;
+        $dst = $to . DIRECTORY_SEPARATOR . $item;
+
+        if (is_dir($src)) {
+            $copyDirectory($src, $dst);
+            continue;
+        }
+
+        if (!copy($src, $dst)) {
+            throw new RuntimeException("Falha ao copiar {$src} para {$dst}");
+        }
+    }
+};
+
+try {
+    $copyDirectory($source, $destination);
+    fwrite(STDOUT, "Assets publicados em: {$destination}
+");
+    exit(0);
+} catch (Throwable $e) {
+    fwrite(STDERR, $e->getMessage() . "
+");
+    exit(1);
+}

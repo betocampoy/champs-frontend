@@ -1,0 +1,57 @@
+/* ==========================================================
+   Champs Core JS - CSS Stubs
+   (classes de contrato usadas pelo Champs Core JS)
+   Objetivo: autocomplete na IDE + documentação viva.
+   ========================================================== */
+
+
+/* ============================
+   VisibilityToogle
+   ============================ */
+.champs-visibility-masked {
+    -webkit-text-security: disc;
+    text-security: disc;
+}
+
+/* ==========================================================
+   Champs Core - CopyText Feedback
+   Independente de Bootstrap
+   ========================================================== */
+
+[data-champs-copied="1"] {
+    position: relative;
+}
+
+[data-champs-copied="1"]::after {
+    content: attr(data-champs-copied-text);
+    position: absolute;
+    left: 50%;
+    top: -6px;
+    transform: translate(-50%, -100%);
+    padding: 4px 8px;
+    font-size: 12px;
+    border-radius: 6px;
+    white-space: nowrap;
+    z-index: 9999;
+
+    background: rgba(0, 0, 0, 0.85);
+    color: #fff;
+
+    opacity: 0;
+    pointer-events: none;
+    animation: champsCopiedFadeIn 150ms ease-out forwards;
+}
+
+@keyframes champsCopiedFadeIn {
+    from { opacity: 0; transform: translate(-50%, -90%); }
+    to   { opacity: 1; transform: translate(-50%, -100%); }
+}
+
+/* Destaque opcional no alvo copiado */
+.champs-copied {
+    outline: 2px solid rgba(25, 135, 84, 0.5);
+    background-color: #d1e7dd;  /* verde claro */
+    border-radius: 4px;
+    outline-offset: 2px;
+    transition: outline 0.2s ease-in-out;
+}

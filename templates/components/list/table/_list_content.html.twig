@@ -1,0 +1,10 @@
+{% include '@ChampsFrontend/components/list/table/_table.html.twig' with {
+    items: items,
+    tableHead: tableHead|default(null),
+    rowTemplate: rowTemplate,
+    itemVar: itemVar|default('item'),
+    tableId: tableId|default(itemsId|default(null)),
+    itemsId: itemsId|default(tableId|default(null)),
+    modelName: modelName|default('model'),
+    extra: extra|default({})
+} only %}

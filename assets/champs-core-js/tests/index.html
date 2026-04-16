@@ -1,0 +1,1529 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Champs Core JS - Testes</title>
+
+    <!-- Bootstrap -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tom-select/2.4.3/css/tom-select.bootstrap5.min.css" integrity="sha512-gKMzEZw+6phm9jAZ9p9x0MdnT2I8U+cv68/UFA0y/RhG4zh2OKSCW4jkjGTzSXvS9oxxKzJD1Om9VD6xKf8y0A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+    <!-- Champs Core CSS -->
+    <link rel="stylesheet" href="../src/styles/champs-core-js.css">
+
+    <style>
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, sans-serif;
+            padding-top: 76px; /* espaço da navbar fixa */
+            background: #f7f8fb;
+        }
+
+        /* offset quando navega por âncora */
+        section[id] {
+            scroll-margin-top: 86px;
+        }
+
+        .page-title {
+            letter-spacing: -0.02em;
+        }
+
+        .section-card {
+            border: 0;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, .06);
+            background: #fff;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .section-subtitle {
+            color: #6c757d;
+            margin: 0;
+        }
+
+        .code-badge {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+            font-size: 12px;
+            padding: 6px 10px;
+            border-radius: 999px;
+            background: #f1f3f5;
+            border: 1px solid #e9ecef;
+            color: #343a40;
+        }
+
+        textarea#customLoaderHtml {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+        }
+
+        .demo-card-min-h {
+            min-height: 160px;
+        }
+
+        .nav-chip {
+            border-radius: 999px;
+        }
+
+        .kbd-hint {
+            font-size: 12px;
+            color: #6c757d;
+        }
+    </style>
+</head>
+
+<body
+        data-champs-consent
+        data-champs-consent-scope="exemplo"
+        data-champs-consent-version="2026-03-02"
+        data-champs-consent-policy-url="/privacidade"
+        data-champs-consent-categories="analytics,marketing,teste"
+        data-champs-consent-default-analytics="false"
+        data-champs-consent-default-marketing="false"
+        data-champs-consent-default-teste="false"
+>
+
+<!-- NAVBAR -->
+<nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom fixed-top">
+    <div class="container">
+        <a class="navbar-brand fw-semibold" href="#top">Champs Core – Testes</a>
+
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navChamps"
+                aria-controls="navChamps" aria-expanded="false" aria-label="Alternar navegação">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div class="collapse navbar-collapse" id="navChamps">
+            <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                <li class="nav-item"><a class="nav-link" href="#sec-loader">Loader</a></li>
+                <li class="nav-item"><a class="nav-link" href="#sec-modals">Modais</a></li>
+                <li class="nav-item"><a class="nav-link" href="#sec-ajax">AJAX</a></li>
+                <li class="nav-item"><a class="nav-link" href="#sec-dom-patch">DomPatch</a></li>
+                <li class="nav-item"><a class="nav-link" href="#sec-forms">Forms</a></li>
+                <li class="nav-item"><a class="nav-link" href="#sec-remote-select">Remote Select</a></li>
+                <li class="nav-item"><a class="nav-link" href="#sec-validation">Validation</a></li>
+                <li class="nav-item"><a class="nav-link" href="#sec-open-new-page">Open New Page</a></li>
+                <li class="nav-item"><a class="nav-link" href="#sec-components">Componentes</a></li>
+                <li class="nav-item"><a class="nav-link" href="#sec-mask-sanitize">Mask & Sanitize</a></li>
+            </ul>
+
+
+        </div>
+    </div>
+</nav>
+
+<div id="top" class="container my-4">
+
+    <!-- HEADER -->
+    <div class="d-flex align-items-start justify-content-between flex-wrap gap-3 mb-4">
+        <div>
+            <h1 class="page-title fw-bold mb-1">Champs Core JS – Página de Testes</h1>
+            <p class="text-muted mb-0">
+                Use esta página para validar comportamento dos módulos via <span class="code-badge">data-champs-*</span>.
+            </p>
+        </div>
+        <div class="text-end">
+            <div class="kbd-hint">Dica: use a navbar fixa para navegar pelas seções.</div>
+        </div>
+    </div>
+
+    <!-- ===== SECTION: LOADER ===== -->
+    <section id="sec-loader" class="mb-4">
+        <div class="card section-card">
+            <div class="card-body p-4">
+                <div class="section-header mb-2">
+                    <div>
+                        <h2 class="h4 fw-bold mb-1">Loader</h2>
+                        <p class="section-subtitle">
+                            Testes reais com <span class="code-badge">AjaxForm + sleep</span> e templates.
+                        </p>
+                    </div>
+                    <span class="code-badge">/tests/api/sleep.php</span>
+                </div>
+
+                <hr class="my-3">
+
+                <!-- Template custom via <template> -->
+                <template id="tpl-loader-minha-encomenda">
+                    <div class="me-loader">
+                        <div class="spinner"></div>
+                        <div class="txt">Processando Minha Encomenda…</div>
+                    </div>
+
+                    <style>
+                        .me-loader {
+                            display: flex;
+                            align-items: center;
+                            gap: 12px;
+                            background: #fff;
+                            padding: 16px 20px;
+                            border-radius: 14px;
+                            box-shadow: 0 12px 35px rgba(0, 0, 0, .18);
+                            font-family: inherit;
+                        }
+
+                        .me-loader .spinner {
+                            width: 24px;
+                            height: 24px;
+                            border: 3px solid #ccc;
+                            border-top-color: #0d6efd;
+                            border-radius: 50%;
+                            animation: me-spin .8s linear infinite;
+                        }
+
+                        @keyframes me-spin {
+                            to {
+                                transform: rotate(360deg)
+                            }
+                        }
+
+                        .me-loader .txt {
+                            font-size: 14px;
+                            font-weight: 500;
+                            color: #222;
+                        }
+                    </style>
+                </template>
+
+                <!-- Buttons: Global/Body -->
+                <div class="mb-3">
+                    <div class="small text-muted mb-2">Testes “globais” (target = body) com todos os templates
+                        disponíveis
+                    </div>
+                    <div class="d-flex flex-wrap gap-2">
+
+                        <button class="btn btn-outline-primary"
+                                type="button"
+                                data-champs-ajax
+                                data-champs-ajax-route="/tests/api/sleep.php?seconds=2"
+                                data-champs-ajax-disable-button="false"
+                                data-champs-loader-target="body"
+                                data-champs-loader-template="default">
+                            Loader Default
+                        </button>
+
+                        <button class="btn btn-outline-primary"
+                                type="button"
+                                data-champs-ajax
+                                data-champs-ajax-route="/tests/api/sleep.php?seconds=2"
+                                data-champs-ajax-disable-button="false"
+                                data-champs-loader-target="body"
+                                data-champs-loader-template="wine">
+                            Loader Wine
+                        </button>
+
+                        <button class="btn btn-outline-primary"
+                                type="button"
+                                data-champs-ajax
+                                data-champs-ajax-route="/tests/api/sleep.php?seconds=2"
+                                data-champs-ajax-disable-button="false"
+                                data-champs-loader-target="body"
+                                data-champs-loader-template="wine-animated">
+                            Loader Wine Animated
+                        </button>
+
+                        <button class="btn btn-outline-primary"
+                                type="button"
+                                data-champs-ajax
+                                data-champs-ajax-route="/tests/api/sleep.php?seconds=2"
+                                data-champs-ajax-disable-button="false"
+                                data-champs-loader-target="body"
+                                data-champs-loader-template="minimal">
+                            Loader Minimal
+                        </button>
+
+                        <button class="btn btn-outline-primary"
+                                type="button"
+                                data-champs-ajax
+                                data-champs-ajax-route="/tests/api/sleep.php?seconds=2"
+                                data-champs-ajax-disable-button="false"
+                                data-champs-loader-target="body"
+                                data-champs-loader-template="cornetas">
+                            Loader Corneta
+                        </button>
+
+                        <button class="btn btn-outline-primary"
+                                type="button"
+                                data-champs-ajax
+                                data-champs-ajax-route="/tests/api/sleep.php?seconds=2"
+                                data-champs-ajax-disable-button="false"
+                                data-champs-loader-target="body"
+                                data-champs-loader-template="cornetas-min">
+                            Loader Corneta Minimal
+                        </button>
+
+                        <button class="btn btn-outline-primary"
+                                type="button"
+                                data-champs-ajax
+                                data-champs-ajax-route="/tests/api/sleep.php?seconds=2"
+                                data-champs-ajax-disable-button="false"
+                                data-champs-loader-target="body"
+                                data-champs-loader-template="org">
+                            Loader Agenda
+                        </button>
+
+                        <button class="btn btn-outline-primary"
+                                type="button"
+                                data-champs-ajax
+                                data-champs-ajax-route="/tests/api/sleep.php?seconds=2"
+                                data-champs-ajax-disable-button="false"
+                                data-champs-loader-target="body"
+                                data-champs-loader-template="org-min">
+                            Loader Agenda Minimal
+                        </button>
+                    </div>
+
+                    <div class="my-3">
+                        <div class="small text-muted mb-2">Loader customizado informando o html inline ou id do
+                            elemento
+                        </div>
+                        <div class="d-flex flex-wrap gap-2">
+
+                            <button class="btn btn-outline-success"
+                                    type="button"
+                                    data-champs-ajax
+                                    data-champs-ajax-route="/tests/api/sleep.php?seconds=2&label=Custom%20HTML%20Inline"
+                                    data-champs-loader-target="body"
+                                    data-champs-loader-template='<div style="background:#111;color:#fff;padding:12px 16px;border-radius:10px">Aguarde…</div>'>
+                                Custom (HTML inline) — 3s
+                            </button>
+
+                            <button class="btn btn-outline-success"
+                                    type="button"
+                                    data-champs-ajax
+                                    data-champs-ajax-route="/tests/api/sleep.php?seconds=2&label=Custom%20Template%20ID"
+                                    data-champs-loader-target="body"
+                                    data-champs-loader-template="#tpl-loader-minha-encomenda">
+                                Loader Custom (Template ID) — 3s
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Local targets -->
+                    <div class="row g-3 align-items-stretch">
+                        <div class="col-lg-6">
+                            <div class="card border demo-card-min-h position-relative" id="loaderTestCard">
+                                <div class="card-body">
+                                    <h5 class="card-title fw-semibold">Loader Local no Card</h5>
+                                    <p class="card-text text-muted">O loader aparece apenas dentro deste card.</p>
+
+                                    <div class="d-flex flex-wrap gap-2">
+                                        <button class="btn btn-outline-success"
+                                                type="button"
+                                                data-champs-ajax
+                                                data-champs-ajax-route="/tests/api/sleep.php?seconds=4&label=Loader%20Cornetas%20no%20Card"
+                                                data-champs-ajax-disable-button="false"
+                                                data-champs-loader-target="#loaderTestCard"
+                                                data-champs-loader-template="cornetas">
+                                            Cornetas no Card — 4s
+                                        </button>
+
+                                        <button class="btn btn-outline-success"
+                                                type="button"
+                                                data-champs-ajax
+                                                data-champs-ajax-route="/tests/api/sleep.php?seconds=4&label=Loader%20Minimal%20no%20Card"
+                                                data-champs-ajax-disable-button="false"
+                                                data-champs-loader-target="#loaderTestCard"
+                                                data-champs-loader-template="minimal">
+                                            Minimal no Card — 4s
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-lg-6">
+                            <div class="card border demo-card-min-h">
+                                <div class="card-body">
+                                    <h5 class="card-title fw-semibold">Loader Inline no Botão</h5>
+                                    <p class="card-text text-muted">O próprio botão vira o alvo e o loader entra em modo
+                                        inline.</p>
+
+                                    <button class="btn btn-warning"
+                                            type="button"
+                                            data-champs-ajax
+                                            data-champs-ajax-route="/tests/api/sleep.php?seconds=2&label=Loader%20Inline%20no%20Botao"
+                                            data-champs-ajax-disable-button="false"
+                                            data-champs-loader
+                                            data-champs-loader-mode="inline"
+                                            data-champs-loader-template="cornetas">
+                                        Loader Inline no Botão — 3s
+                                    </button>
+
+                                    <div class="form-text mt-2">
+                                        Bom pra validar templates self-contained (sem depender de CSS externo).
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+    </section>
+
+    <!-- ===== SECTION: MODALS ===== -->
+    <section id="sec-modals" class="mb-4">
+        <div class="card section-card">
+            <div class="card-body p-4">
+                <div class="section-header mb-2">
+                    <div>
+                        <h2 class="h4 fw-bold mb-1">Modais</h2>
+                        <p class="section-subtitle">Testes de modais via AjaxForm.</p>
+                    </div>
+                    <span class="code-badge">/tests/api/modal_*.php</span>
+                </div>
+
+                <hr class="my-3">
+
+                <div class="d-flex flex-wrap gap-2">
+                    <button class="btn btn-primary"
+                            type="button"
+                            data-champs-ajax
+                            data-champs-ajax-route="/tests/api/modal_confirm.php"
+                            data-champs-ajax-disable-button="false"
+                            data-champs-ajax-confirm="Teste de mensagem de confirmação, se cancelar fechar, se continuar, será aberto outro modal de sucesso!">
+                        Modal Confirm
+                    </button>
+
+                    <button class="btn btn-primary"
+                            type="button"
+                            data-champs-ajax
+                            data-champs-ajax-route="/tests/api/modal_html.php"
+                            data-champs-ajax-disable-button="false">
+                        Modal HTML
+                    </button>
+
+                    <button class="btn btn-primary"
+                            type="button"
+                            data-champs-ajax
+                            data-champs-ajax-route="/tests/api/modal_button_with_attr.php"
+                            data-champs-ajax-disable-button="false">
+                        Modal Buttons + attrs
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== SECTION: AJAX ===== -->
+    <section id="sec-ajax" class="mb-4">
+        <div class="card section-card">
+            <div class="card-body p-4">
+                <div class="section-header mb-2">
+                    <div>
+                        <h2 class="h4 fw-bold mb-1">AJAX (por data-attrs)</h2>
+                        <p class="section-subtitle">Validação, mensagens, redirect e payload.</p>
+                    </div>
+                    <span class="code-badge">/tests/api/*.php</span>
+                </div>
+
+                <hr class="my-3">
+
+                <div class="row g-3">
+                    <div class="col-lg-5">
+                        <div class="border rounded-3 p-3 bg-light">
+                            <h5 class="fw-semibold mb-2">Form Base</h5>
+                            <form name="form_ajax" class="d-grid gap-2">
+                                <input name="nome" class="form-control" placeholder="nome"/>
+                                <input name="email" class="form-control" placeholder="email"/>
+                                <input name="cliente_id" class="form-control" placeholder="cliente_id (no form)"/>
+                            </form>
+                            <div class="form-text mt-2">
+                                Usado em botões que informam <span
+                                    class="code-badge">data-champs-ajax-form="form_ajax"</span>.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-7">
+                        <div class="d-flex flex-wrap gap-2">
+                            <button class="btn btn-primary"
+                                    type="button"
+                                    data-champs-ajax
+                                    data-champs-ajax-route="/tests/api/success.php"
+                                    data-champs-ajax-form="form_ajax"
+                                    data-champs-ajax-with-inputs="true"
+                                    data-champs-ajax-disable-button="true"
+                                    data-champs-ajax-field-cliente_id="216"
+                                    data-champs-loader-mode="inline">
+                                Success (form vence conflito cliente_id)
+                            </button>
+
+                            <button class="btn btn-primary"
+                                    type="button"
+                                    data-champs-ajax
+                                    data-champs-ajax-route="/tests/api/success.php"
+                                    data-champs-ajax-form="form_ajax"
+                                    data-champs-ajax-with-inputs="true"
+                                    data-champs-ajax-disable-button="true"
+                                    data-champs-ajax-field-cliente_id="216"
+                                    data-champs-ajax-priorize-data-attr="cliente_id">
+                                Success (data-attr vence cliente_id)
+                            </button>
+
+                            <button class="btn btn-primary"
+                                    type="button"
+                                    data-champs-ajax
+                                    data-champs-ajax-route="/tests/api/success-html.php"
+                                    data-champs-ajax-form="form_ajax"
+                                    data-champs-ajax-confirm="Tem certeza?"
+                                    data-champs-ajax-with-inputs="true"
+                                    data-champs-ajax-disable-button="true"
+                                    data-champs-ajax-field-cliente_id="216"
+                                    data-champs-ajax-priorize-data-attr="cliente_id">
+                                Success (Message em HTML)
+                            </button>
+
+                            <button class="btn btn-primary"
+                                    type="button"
+                                    data-champs-ajax
+                                    data-champs-ajax-route="/tests/api/validation_fields.php"
+                                    data-champs-ajax-form="form_ajax"
+                                    data-champs-ajax-with-inputs="true"
+                                    data-champs-ajax-disable-button="true">
+                                Validation (com fields)
+                            </button>
+
+                            <button class="btn btn-primary"
+                                    type="button"
+                                    data-champs-ajax
+                                    data-champs-ajax-route="/tests/api/validation_message.php"
+                                    data-champs-ajax-form="form_ajax"
+                                    data-champs-ajax-with-inputs="true"
+                                    data-champs-ajax-disable-button="true">
+                                Validation (só mensagem)
+                            </button>
+
+                            <button class="btn btn-primary"
+                                    type="button"
+                                    data-champs-ajax
+                                    data-champs-ajax-route="/tests/api/messages_multi.php"
+                                    data-champs-ajax-disable-button="false">
+                                Múltiplas mensagens
+                            </button>
+
+                            <button class="btn btn-primary"
+                                    type="button"
+                                    data-champs-ajax
+                                    data-champs-ajax-route="/tests/api/redirect.php">
+                                Redirect (terminal)
+                            </button>
+
+                            <button class="btn btn-primary"
+                                    type="button"
+                                    data-champs-ajax
+                                    data-champs-ajax-route="/tests/api/echo.php"
+                                    data-champs-ajax-form="form_ajax"
+                                    data-champs-ajax-with-inputs="true"
+                                    data-champs-ajax-field-extra="123">
+                                Testar Payload
+                            </button>
+                        </div>
+
+                        <div class="form-text mt-3">
+                            Dica: use o console com <span class="code-badge">window.debugPayload()</span> se necessário.
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== SECTION: DOM PATCH ===== -->
+    <section id="sec-dom-patch" class="mb-4">
+        <div class="card section-card">
+            <div class="card-body p-4">
+                <div class="section-header mb-2">
+                    <div>
+                        <h2 class="h4 fw-bold mb-1">DomPatch</h2>
+                        <p class="section-subtitle">
+                            Testes reais do fluxo <span class="code-badge">AjaxForm → response → dom-patch</span>.
+                        </p>
+                    </div>
+                    <span class="code-badge">/tests/api/dom_patch.php</span>
+                </div>
+
+                <hr class="my-3">
+
+                <!-- CONTROLES: CARDS -->
+                <div class="mb-4">
+                    <h5 class="fw-semibold mb-2">Cards</h5>
+
+                    <div class="d-flex flex-wrap gap-2 mb-3">
+                        <button
+                                class="btn btn-outline-primary"
+                                type="button"
+                                data-champs-ajax
+                                data-champs-ajax-route="tests/api/dom_patch.php"
+                                data-champs-ajax-disable-button="false"
+                                data-champs-ajax-field-action="replace-card-1">
+                            Replace Card 1
+                        </button>
+
+                        <button
+                                class="btn btn-outline-success"
+                                type="button"
+                                data-champs-ajax
+                                data-champs-ajax-route="/tests/api/dom_patch.php"
+                                data-champs-ajax-disable-button="false"
+                                data-champs-ajax-field-action="prepend-card"
+                                data-champs-ajax-field-id="101">
+                            Prepend Card
+                        </button>
+
+                        <button
+                                class="btn btn-outline-success"
+                                type="button"
+                                data-champs-ajax
+                                data-champs-ajax-route="/tests/api/dom_patch.php"
+                                data-champs-ajax-disable-button="false"
+                                data-champs-ajax-field-action="append-card"
+                                data-champs-ajax-field-id="102">
+                            Append Card
+                        </button>
+
+                        <button
+                                class="btn btn-outline-danger"
+                                type="button"
+                                data-champs-ajax
+                                data-champs-ajax-route="/tests/api/dom_patch.php"
+                                data-champs-ajax-disable-button="false"
+                                data-champs-ajax-field-action="remove-card-2">
+                            Remove Card 2
+                        </button>
+
+                        <button
+                                class="btn btn-outline-secondary"
+                                type="button"
+                                data-champs-ajax
+                                data-champs-ajax-route="/tests/api/dom_patch.php"
+                                data-champs-ajax-disable-button="false"
+                                data-champs-ajax-field-action="clear-cards">
+                            Clear Cards
+                        </button>
+                    </div>
+
+                    <div class="row g-3 mt-2" id="champs-card-list-dompatch">
+                        <div class="col-12 col-lg-6" id="dompatch-item-1">
+                            <div id="dompatch-card-1">
+                                <div class="card h-100">
+                                    <div class="card-header">
+                                        <div class="fw-semibold">Card 1</div>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="champs_message_content mb-2"></div>
+                                        <p class="mb-0">Conteúdo inicial do card 1.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-lg-6" id="dompatch-item-2">
+                            <div id="dompatch-card-2">
+                                <div class="card h-100">
+                                    <div class="card-header">
+                                        <div class="fw-semibold">Card 2</div>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="champs_message_content mb-2"></div>
+                                        <p class="mb-0">Conteúdo inicial do card 2.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-text mt-3">
+                        Targets usados aqui:
+                        <span class="code-badge">#champs-card-list-dompatch</span>,
+                        <span class="code-badge">#dompatch-item-1</span>,
+                        <span class="code-badge">#dompatch-item-2</span>.
+                    </div>
+                </div>
+
+                <hr class="my-4">
+
+                <!-- CONTROLES: TABELA -->
+                <div>
+                    <h5 class="fw-semibold mb-2">Tabela / Rows</h5>
+
+                    <div class="d-flex flex-wrap gap-2 mb-3">
+                        <button
+                                class="btn btn-outline-primary"
+                                type="button"
+                                data-champs-ajax
+                                data-champs-ajax-route="/tests/api/dom_patch.php"
+                                data-champs-ajax-disable-button="false"
+                                data-champs-ajax-field-action="replace-row-1">
+                            Replace Row 1
+                        </button>
+
+                        <button
+                                class="btn btn-outline-success"
+                                type="button"
+                                data-champs-ajax
+                                data-champs-ajax-route="/tests/api/dom_patch.php"
+                                data-champs-ajax-disable-button="false"
+                                data-champs-ajax-field-action="append-row"
+                                data-champs-ajax-field-id="201">
+                            Append Row
+                        </button>
+
+                        <button
+                                class="btn btn-outline-danger"
+                                type="button"
+                                data-champs-ajax
+                                data-champs-ajax-route="/tests/api/dom_patch.php"
+                                data-champs-ajax-disable-button="false"
+                                data-champs-ajax-field-action="remove-row-2">
+                            Remove Row 2
+                        </button>
+
+                        <button
+                                class="btn btn-outline-secondary"
+                                type="button"
+                                data-champs-ajax
+                                data-champs-ajax-route="/tests/api/dom_patch.php"
+                                data-champs-ajax-disable-button="false"
+                                data-champs-ajax-field-action="clear-rows">
+                            Clear Rows
+                        </button>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered align-middle mb-0">
+                            <thead>
+                            <tr>
+                                <th style="width: 90px;">ID</th>
+                                <th>Nome</th>
+                                <th style="width: 160px;">Status</th>
+                            </tr>
+                            </thead>
+                            <tbody id="dompatch-table-body">
+                            <tr id="dompatch-row-1">
+                                <td>1</td>
+                                <td>Empresa A</td>
+                                <td>Ativa</td>
+                            </tr>
+                            <tr id="dompatch-row-2">
+                                <td>2</td>
+                                <td>Empresa B</td>
+                                <td>Inativa</td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="form-text mt-3">
+                        Targets usados aqui:
+                        <span class="code-badge">#dompatch-table-body</span>,
+                        <span class="code-badge">#dompatch-row-1</span>,
+                        <span class="code-badge">#dompatch-row-2</span>.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    <!-- ===== SECTION: FORMS ===== -->
+    <section id="sec-forms" class="mb-4">
+        <div class="card section-card">
+            <div class="card-body p-4">
+                <div class="section-header mb-2">
+                    <div>
+                        <h2 class="h4 fw-bold mb-1">Forms</h2>
+                        <p class="section-subtitle">FormPopulation + FormFiller (testes rápidos).</p>
+                    </div>
+                </div>
+
+                <hr class="my-3">
+
+                <div class="row g-3">
+                    <div class="col-lg-6">
+                        <h5 class="fw-semibold">FormPopulation</h5>
+                        <p class="text-muted mb-2">Ao alterar o campo pai, o filho é populado.</p>
+
+                        <select
+                                id="unidade"
+                                name="unidade_id"
+                                class="form-select mb-2"
+                                data-group="local"
+                                data-group_index="1"
+
+                                data-champs-ajax
+                                data-champs-ajax-trigger="change"
+                                data-champs-ajax-disable-button="false"
+                                data-champs-ajax-route="/tests/api/populate.php"
+                                data-champs-ajax-with-inputs="false"
+                                data-champs-populate-child="#cliente"
+                        >
+                            <option value="" selected disabled>Selecione a unidade</option>
+                            <option value="1">Unidade 1</option>
+                            <option value="2">Unidade 2</option>
+                            <option value="3">Unidade 3</option>
+                        </select>
+
+                        <select
+                                id="cliente"
+                                name="cliente_id"
+                                class="form-select"
+                                data-group="local"
+                                data-group_index="2"
+                                disabled
+                        >
+                            <option value="" selected disabled>Selecione a unidade primeiro</option>
+                        </select>
+                    </div>
+
+                    <div class="col-lg-6">
+                        <h5 class="fw-semibold">FormFiller</h5>
+                        <p class="text-muted mb-2">Preenche campos com retorno do backend.</p>
+
+                        <input type="text" class="form-control nome mb-2" placeholder="Nome">
+                        <input type="email" class="form-control email mb-2" placeholder="Email">
+                        <select class="form-select nivel mb-2">
+                            <option value="">Selecione o nível</option>
+                            <option value="admin">Administrador</option>
+                            <option value="user">Usuário</option>
+                        </select>
+
+                        <button
+                                class="btn btn-outline-primary"
+                                type="button"
+                                data-champs-ajax
+                                data-champs-ajax-route="/tests/api/formfiller.php"
+                        >
+                            Testar FormFiller + custom
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== SECTION: REMOTE SELECT (TomSelect + AJAX + Pagination) ===== -->
+    <section id="sec-remote-select" class="mb-4">
+        <div class="card section-card">
+            <div class="card-body p-4">
+                <div class="section-header mb-2">
+                    <div>
+                        <h2 class="h4 fw-bold mb-1">Remote Select (TomSelect + AJAX + Paginação)</h2>
+                        <p class="section-subtitle mb-0">
+                            Busca remota com filtros por grupo e paginação por scroll no dropdown.
+                            <span class="code-badge">group</span>
+                            <span class="code-badge">param</span>
+                            <span class="code-badge">default</span>
+                            <span class="code-badge">page/per_page</span>
+                        </p>
+                    </div>
+                    <span class="code-badge">/tests/api/remote_clients.php</span>
+                </div>
+
+                <hr class="my-3">
+
+                <div class="row g-4">
+                    <!-- COL 1: FILTROS -->
+                    <div class="col-lg-5">
+                        <div class="border rounded-3 p-3 bg-light">
+                            <h5 class="fw-semibold mb-3">
+                                Filtros do Grupo <span class="code-badge">clienteFiltro</span>
+                            </h5>
+
+                            <div class="mb-3">
+                                <label class="form-label">Unidade</label>
+                                <select class="form-select"
+                                        name="unidade_id"
+                                        data-champs-remote-select-group="clienteFiltro"
+                                        data-champs-remote-select-default1="1">
+                                    <option value="">(vazio = usa default=1)</option>
+                                    <option value="1" selected>Unidade 1</option>
+                                    <option value="2">Unidade 2</option>
+                                    <option value="3">Unidade 3</option>
+                                </select>
+                                <div class="form-text">
+                                    Se ficar vazio, o request envia <span class="code-badge">unidade_id=1</span>.
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Somente Ativos</label>
+                                <div class="form-check">
+                                    <input class="form-check-input"
+                                           type="checkbox"
+                                           id="rsAtivo"
+                                           name="ativo"
+                                           value="1"
+                                           data-champs-remote-select-group="clienteFiltro"
+                                           data-champs-remote-select-param="ativo"
+                                           data-champs-remote-select-default1="1"
+                                           checked>
+                                    <label class="form-check-label" for="rsAtivo">Ativos</label>
+                                </div>
+                                <div class="form-text">
+                                    Se desmarcar, como existe default=1, o request ainda envia <span class="code-badge">ativo=1</span>.
+                                    (Remova o default se quiser que desmarcado não envie.)
+                                </div>
+                            </div>
+
+                            <div class="mb-0">
+                                <label class="form-label">Tipo (exemplo)</label>
+                                <select class="form-select"
+                                        name="tipo"
+                                        data-champs-remote-select-group="clienteFiltro"
+                                        data-champs-remote-select-default1="normal">
+                                    <option value="">(vazio = default=normal)</option>
+                                    <option value="normal" selected>Normal</option>
+                                    <option value="vip">VIP</option>
+                                </select>
+                                <div class="form-text">Vai junto no request: <span class="code-badge">tipo</span>.</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- COL 2: SELECT REMOTO -->
+                    <div class="col-lg-7">
+                        <div class="border rounded-3 p-3 bg-white">
+                            <h5 class="fw-semibold mb-2">Select remoto</h5>
+
+                            <label class="form-label">Cliente</label>
+                            <select class="form-select"
+                                    name="cliente_id"
+                                    data-champs-remote-select="true"
+                                    data-champs-remote-select-url="/tests/api/remote_clients.php"
+                                    data-champs-remote-select-group="clienteFiltro"
+                                    data-champs-remote-select-min-chars="2"
+                                    data-champs-remote-select-debounce="250"
+                                    data-champs-remote-select-per-page="5"
+                                    data-champs-remote-select-placeholder="Digite o nome do cliente…"
+                                    data-champs-remote-select-allow-clear="true">
+                                <option value="" selected></option>
+                            </select>
+
+                            <div class="form-text mt-2">
+                                Digite <span class="code-badge">2+</span> caracteres.
+                                Depois, <strong>role o dropdown</strong> para carregar próximas páginas.
+                                O log abaixo deve mostrar <span class="code-badge">page=1</span>, <span class="code-badge">page=2</span>...
+                            </div>
+
+                            <hr class="my-3">
+
+                            <div class="d-flex flex-wrap align-items-center gap-2">
+                                <button class="btn btn-outline-secondary btn-sm" type="button" id="btnRemoteSelectLogClear">
+                                    Limpar Log
+                                </button>
+                                <span class="text-muted small">
+                (o log espelha as URLs chamadas, ideal para validar defaults e paginação)
+              </span>
+                            </div>
+
+                            <pre class="bg-light p-3 border mt-3"
+                                 id="remoteSelectLog"
+                                 style="white-space:pre-wrap; min-height: 220px; margin-bottom: 0;"></pre>
+
+                            <div class="small text-muted mt-3">
+                                <strong>Checklist:</strong>
+                                1) Digitar faz request com <span class="code-badge">q</span>.
+                                2) Mudar Unidade/Ativo/Tipo limpa opções e “recomeça”.
+                                3) Scroll no dropdown dispara paginação (<span class="code-badge">page</span> sobe).
+                                4) Sem TomSelect: aparece <span class="code-badge">console.warn</span> e o select fica nativo.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== SECTION: VALIDATION ===== -->
+    <section id="sec-validation" class="mb-4">
+        <div class="card section-card">
+            <div class="card-body p-4">
+                <div class="section-header mb-2">
+                    <div>
+                        <h2 class="h4 fw-bold mb-1">Validation (CPF / CNPJ / IE)</h2>
+                        <p class="section-subtitle">
+                            Testes do módulo <span class="code-badge">data-champs-validate</span> com dependências
+                            (<span class="code-badge">UF</span> e <span class="code-badge">Documento</span>).
+                        </p>
+                    </div>
+                    <span class="code-badge">champs:validated</span>
+                </div>
+
+                <hr class="my-3">
+
+                <div class="row g-4">
+                    <!-- COL 1: FORM -->
+                    <div class="col-lg-7">
+                        <div class="border rounded-3 p-3 bg-light">
+                            <h5 class="fw-semibold mb-3">Form de Validação</h5>
+
+                            <div class="row g-3">
+                                <!-- Documento -->
+                                <div class="col-12">
+                                    <label class="form-label">Documento (CPF/CNPJ)</label>
+                                    <input
+                                            id="valDoc"
+                                            type="text"
+                                            class="form-control"
+                                            placeholder="Digite CPF ou CNPJ"
+                                            data-champs-validate
+                                            data-champs-validate-type="cpfcnpj"
+                                            data-champs-validate-trigger="blur"
+                                            data-champs-validate-triggers="#valIE"
+                                    >
+                                    <div class="form-text">
+                                        Ao mudar o documento, revalida IE automaticamente.
+                                    </div>
+                                </div>
+
+                                <!-- UF -->
+                                <div class="col-md-4">
+                                    <label class="form-label">UF</label>
+                                    <select
+                                            id="valUF"
+                                            class="form-select"
+                                            data-champs-validate-triggers="#valIE"
+                                            data-champs-validate-trigger="change"
+                                    >
+                                        <option value="">Selecione</option>
+                                        <option value="AC">AC</option><option value="AL">AL</option><option value="AP">AP</option><option value="AM">AM</option>
+                                        <option value="BA">BA</option><option value="CE">CE</option><option value="DF">DF</option><option value="ES">ES</option>
+                                        <option value="GO">GO</option><option value="MA">MA</option><option value="MT">MT</option><option value="MS">MS</option>
+                                        <option value="MG">MG</option><option value="PA">PA</option><option value="PB">PB</option><option value="PR">PR</option>
+                                        <option value="PE">PE</option><option value="PI">PI</option><option value="RJ">RJ</option><option value="RN">RN</option>
+                                        <option value="RS">RS</option><option value="RO">RO</option><option value="RR">RR</option><option value="SC">SC</option>
+                                        <option value="SP">SP</option><option value="SE">SE</option><option value="TO">TO</option>
+                                    </select>
+                                    <div class="form-text">
+                                        Ao mudar UF, revalida IE.
+                                    </div>
+                                </div>
+
+                                <!-- IE -->
+                                <div class="col-md-8">
+                                    <label class="form-label">Inscrição Estadual (IE)</label>
+                                    <input
+                                            id="valIE"
+                                            type="text"
+                                            class="form-control"
+                                            placeholder="Digite a IE"
+                                            data-champs-validate
+                                            data-champs-validate-type="ie"
+                                            data-champs-validate-trigger="blur"
+                                            data-champs-validate-uf-from="#valUF"
+                                            data-champs-validate-doc-from="#valDoc"
+                                            data-champs-validate-requires="cnpj"
+                                            data-champs-validate-disable-until="cnpj"
+                                    >
+                                    <div class="form-text">
+                                        Regra: IE só valida quando o documento for <strong>CNPJ</strong>.
+                                        Se o doc for CPF, a IE fica neutra (sem erro).
+                                    </div>
+                                </div>
+
+                                <!-- Botão só pra disparar blur fácil -->
+                                <div class="col-12 d-flex flex-wrap gap-2 mt-1">
+                                    <button type="button" class="btn btn-outline-secondary"
+                                            onclick="document.querySelector('#valDoc').focus(); document.querySelector('#valDoc').blur();">
+                                        Validar Documento
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary"
+                                            onclick="document.querySelector('#valIE').focus(); document.querySelector('#valIE').blur();">
+                                        Validar IE
+                                    </button>
+                                    <button type="button" class="btn btn-outline-danger"
+                                            onclick="document.querySelector('#valDoc').value=''; document.querySelector('#valIE').value=''; document.querySelector('#valUF').value='';">
+                                        Limpar
+                                    </button>
+                                </div>
+                            </div>
+
+                            <hr class="my-3">
+
+                            <div class="small text-muted">
+                                Dica: teste fluxo completo:
+                                <span class="code-badge">CPF</span> → IE não deve reclamar;
+                                <span class="code-badge">CNPJ</span> + UF → IE deve validar.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- COL 2: LOG -->
+                    <div class="col-lg-5">
+                        <div class="border rounded-3 p-3 bg-white">
+                            <div class="d-flex align-items-center justify-content-between gap-2">
+                                <h5 class="fw-semibold mb-0">Eventos (champs:validated)</h5>
+                                <button class="btn btn-sm btn-outline-secondary" id="btnClearValidatedLog" type="button">
+                                    Limpar
+                                </button>
+                            </div>
+
+                            <pre class="bg-light p-3 border mt-3"
+                                 id="validatedLog"
+                                 style="white-space:pre-wrap; min-height: 220px; margin-bottom: 0;"></pre>
+
+                            <div class="form-text mt-2">
+                                Mostra <span class="code-badge">type</span>, <span class="code-badge">valid</span>,
+                                <span class="code-badge">neutral</span>, <span class="code-badge">detected</span>, etc.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== SECTION: OPEN NEW PAGE ===== -->
+    <section id="sec-open-new-page" class="mb-4">
+        <div class="card section-card">
+            <div class="card-body p-4">
+                <div class="section-header mb-2">
+                    <div>
+                        <h2 class="h4 fw-bold mb-1">Open New Page</h2>
+                        <p class="section-subtitle">
+                            Testes da action <span class="code-badge">open-new-page</span>
+                            (relatórios / etiquetas).
+                        </p>
+                    </div>
+                    <span class="code-badge">/tests/api/open_new_page.php</span>
+                </div>
+
+                <hr class="my-3">
+
+                <div class="d-flex flex-wrap gap-2">
+
+                    <button
+                            class="btn btn-outline-primary"
+                            type="button"
+                            data-champs-ajax
+                            data-champs-ajax-route="/tests/api/open_new_page.php?mode=single&sleep=2"
+                            data-champs-ajax-disable-button="false"
+                            data-champs-open-new-page
+                            data-champs-open-new-page-count="1"
+                            data-champs-open-new-page-target="_blank"
+                    >
+                        Abrir 1 página (_blank) — 2s
+                    </button>
+
+                    <button class="btn btn-outline-primary"
+                            type="button"
+                            data-champs-ajax
+                            data-champs-ajax-route="/tests/api/open_new_page.php?mode=self&sleep=2"
+                            data-champs-ajax-disable-button="false">
+                        Abrir no _self — 2s
+                    </button>
+
+                    <button class="btn btn-outline-primary"
+                            type="button"
+                            data-champs-ajax
+                            data-champs-ajax-route="/tests/api/open_new_page.php?mode=multi&sleep=2"
+                            data-champs-ajax-disable-button="false">
+                        Abrir múltiplas páginas — 2s
+                    </button>
+
+                </div>
+
+                <div class="form-text mt-3">
+                    Use <span class="code-badge">mode=single</span>,
+                    <span class="code-badge">mode=self</span> ou
+                    <span class="code-badge">mode=multi</span>.
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== SECTION: COMPONENTS ===== -->
+    <section id="sec-components" class="mb-4">
+        <div class="card section-card">
+            <div class="card-body p-4">
+                <div class="section-header mb-2">
+                    <div>
+                        <h2 class="h4 fw-bold mb-1">Componentes</h2>
+                        <p class="section-subtitle">Checkbox Group, Datalist, CEP, Visibilidade, CopyText.</p>
+                    </div>
+                </div>
+
+                <hr class="my-3">
+
+                <div class="row g-4">
+
+                    <!-- Checkbox -->
+                    <div class="col-lg-6" id="checkbox">
+                        <h5 class="fw-semibold">Checkbox Group</h5>
+
+                        <label class="form-check mb-2">
+                            <input
+                                    type="checkbox"
+                                    class="form-check-input"
+                                    data-champs-checkbox-parent
+                                    data-champs-checkbox-group="grupo1"
+                                    data-champs-checkbox-counter="#contador"
+                                    data-champs-checkbox-total="#soma"
+                            >
+                            <span class="form-check-label">Selecionar todos</span>
+                        </label>
+
+                        <div class="ms-3">
+                            <label class="form-check">
+                                <input
+                                        type="checkbox"
+                                        class="form-check-input"
+                                        data-champs-checkbox-child
+                                        data-champs-checkbox-group="grupo1"
+                                        data-champs-checkbox-counter="#contador"
+                                        data-champs-checkbox-total="#soma"
+                                        data-champs-checkbox-value="10"
+                                >
+                                Item 1 (10)
+                            </label>
+
+                            <label class="form-check mt-2">
+                                <input
+                                        type="checkbox"
+                                        class="form-check-input"
+                                        data-champs-checkbox-child
+                                        data-champs-checkbox-group="grupo1"
+                                        data-champs-checkbox-counter="#contador"
+                                        data-champs-checkbox-total="#soma"
+                                        data-champs-checkbox-value="20"
+                                >
+                                Item 2 (20)
+                            </label>
+                        </div>
+
+                        <div class="mt-3">
+                            <div>Total selecionados: <span id="contador" class="fw-semibold">0</span></div>
+                            <div>Soma total: <span id="soma" class="fw-semibold">0</span></div>
+                        </div>
+                    </div>
+
+                    <!-- Datalist -->
+                    <div class="col-lg-6" id="datalist">
+                        <h5 class="fw-semibold">Datalist</h5>
+                        <p class="text-muted mb-2">Seleciona uma opção e atualiza o target.</p>
+
+                        <input list="nomes" class="form-control datalist_input_on_change mb-2"
+                               placeholder="Digite um nome" data-datalist_clear_after_change="true">
+
+                        <datalist id="nomes">
+                            <option id="1" data-value="1" value="Beto">
+                            <option id="2" data-value="2" value="Pedro">
+                            <option id="3" data-value="3" value="Cadu">
+                        </datalist>
+
+                        <select class="form-select datalist_target_element_class">
+                            <option value="">ID selecionado aparecerá aqui</option>
+                            <option value="1">Beto</option>
+                            <option value="2">Pedro</option>
+                            <option value="3">Cadu</option>
+                        </select>
+                    </div>
+
+                    <!-- CEP -->
+                    <div class="col-lg-6" id="cep">
+                        <h5 class="fw-semibold">Consulta de CEP (ViaCEP)</h5>
+
+                        <input
+                                type="text"
+                                class="form-control mb-2"
+                                placeholder="Digite o CEP"
+                                data-champs-zipcode
+                                data-champs-zipcode-group="endereco1"
+                                data-champs-zipcode-trigger="change"
+                        />
+
+                        <div class="row g-2">
+                            <div class="col-12"><input class="form-control" data-champs-zipcode-field="street"
+                                                       data-champs-zipcode-group="endereco1" placeholder="Rua"></div>
+                            <div class="col-12"><input class="form-control" data-champs-zipcode-field="neighborhood"
+                                                       data-champs-zipcode-group="endereco1" placeholder="Bairro"></div>
+                            <div class="col-md-6"><input class="form-control" data-champs-zipcode-field="city"
+                                                         data-champs-zipcode-group="endereco1" placeholder="Cidade">
+                            </div>
+                            <div class="col-md-3"><input class="form-control" data-champs-zipcode-field="state"
+                                                         data-champs-zipcode-group="endereco1" placeholder="UF"></div>
+                            <div class="col-md-3"><input class="form-control" data-champs-zipcode-field="ddd"
+                                                         data-champs-zipcode-group="endereco1" placeholder="DDD"></div>
+                        </div>
+
+                        <div class="text-danger fw-bold mt-2" data-champs-zipcode-field="error"
+                             data-champs-zipcode-group="endereco1"></div>
+                        <pre class="bg-light p-3 border mt-3" style="white-space:pre-wrap;"
+                             data-champs-zipcode-field="json" data-champs-zipcode-group="endereco1"></pre>
+                    </div>
+
+                    <!-- Visibility -->
+                    <div class="col-lg-6" id="seguro">
+                        <h5 class="fw-semibold">Visualização Segura</h5>
+
+                        <div class="mb-3">
+                            <label for="senhaConta" class="form-label">Senha</label>
+                            <div class="input-group">
+                                <input
+                                        type="password"
+                                        class="form-control"
+                                        id="senhaConta"
+                                        value="Segredo123"
+                                        data-champs-visibility-group="grupo_sensivel"
+                                >
+                                <button
+                                        class="btn btn-outline-secondary"
+                                        type="button"
+                                        data-champs-visibility-toggle
+                                        data-champs-visibility-group="grupo_sensivel"
+                                        data-champs-visibility-icon-mode="html"
+                                        data-champs-visibility-icon-show="👁"
+                                        data-champs-visibility-icon-hide="🙈"
+                                >👁
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="form-floating mb-2">
+                            <input
+                                    type="text"
+                                    class="form-control"
+                                    id="valorConta"
+                                    value="R$ 10.000,00"
+                                    placeholder="Valor da Conta"
+                                    data-champs-visibility-group="grupo_sensivel"
+                            >
+                            <label for="valorConta">Valor da Conta</label>
+                        </div>
+                    </div>
+
+                    <!-- CopyText -->
+                    <div class="col-lg-12">
+                        <h5 class="fw-semibold">CopyText</h5>
+
+                        <div class="row g-3">
+                            <div class="col-lg-6">
+                                <div class="small text-muted mb-1">1) Copiar de outro elemento (data-champs-copy-from)
+                                </div>
+                                <div class="d-flex align-items-center flex-wrap gap-2">
+                                    <span id="serial-abc" class="badge text-bg-light border">21915274269470051103110311PBA86</span>
+                                    <button class="btn btn-sm btn-outline-secondary"
+                                            data-champs-copy-from="#serial-abc">
+                                        Copiar Nº de Série
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="col-lg-6">
+                                <div class="small text-muted mb-1">2) Copiar texto direto (data-champs-copy-text)</div>
+                                <button class="btn btn-sm btn-outline-secondary"
+                                        data-champs-copy-text="Pedido #12345 - Cliente: São João LTDA">
+                                    Copiar texto fixo
+                                </button>
+                            </div>
+
+                            <div class="col-lg-6">
+                                <div class="small text-muted mb-1">3) Copiar o próprio conteúdo (data-champs-copy)</div>
+                                <button class="btn btn-sm btn-outline-secondary" data-champs-copy>
+                                    0800 123 456
+                                </button>
+                            </div>
+
+                            <div class="col-lg-6">
+                                <div class="small text-muted mb-1">4) Copiar e marcar checkbox (data-champs-check)</div>
+                                <div class="d-flex align-items-center gap-2 flex-wrap">
+                                    <span id="token-xyz" class="badge text-bg-light border">tok_7f3a2c9b</span>
+                                    <button class="btn btn-sm btn-outline-secondary"
+                                            data-champs-copy-from="#token-xyz"
+                                            data-champs-check="#chk-token-copiado">
+                                        Copiar token
+                                    </button>
+
+                                    <label class="form-check ms-2">
+                                        <input class="form-check-input" type="checkbox" id="chk-token-copiado">
+                                        <span class="form-check-label">Token copiado</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== SECTION: MASK + SANITIZE ===== -->
+    <section id="sec-mask-sanitize" class="mb-5">
+        <div class="card section-card">
+            <div class="card-body p-4">
+                <div class="section-header mb-2">
+                    <div>
+                        <h2 class="h4 fw-bold mb-1">InputMask + InputSanitize</h2>
+                        <p class="section-subtitle">Testes práticos para máscaras e saneamento.</p>
+                    </div>
+                    <span class="code-badge">champs:masked / champs:sanitized</span>
+                </div>
+
+                <hr class="my-3">
+
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Telefone (mask: (99) 99999-9999)</label>
+                        <input type="text" class="form-control"
+                               placeholder="Digite só números: 16999998888"
+                               data-champs-mask="(99) 99999-9999">
+                        <div class="form-text">Esperado: (16) 99999-8888</div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">CPF (mask: 999.999.999-99)</label>
+                        <input type="text" class="form-control"
+                               placeholder="Digite só números: 12345678901"
+                               data-champs-mask="999.999.999-99">
+                        <div class="form-text">Esperado: 123.456.789-01</div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">Data (mask: 99/99/9999)</label>
+                        <input type="text" class="form-control"
+                               placeholder="Digite: 01012026"
+                               data-champs-mask="99/99/9999">
+                        <div class="form-text">Esperado: 01/01/2026</div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">Razão Social (trim + normalize + upper)</label>
+                        <input type="text" class="form-control"
+                               placeholder="Digite:  são joão ltda  "
+                               data-champs-sanitize
+                               data-champs-sanitize-trim
+                               data-champs-sanitize-collapse-spaces
+                               data-champs-sanitize-normalize
+                               data-champs-sanitize-upper>
+                        <div class="form-text">Esperado: SAO JOAO LTDA</div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">E-mail (trim + lower + normalize)</label>
+                        <input type="text" class="form-control"
+                               placeholder="Digite:  JoSÉ.SilvA@ExEmPlO.com  "
+                               data-champs-sanitize
+                               data-champs-sanitize-trim
+                               data-champs-sanitize-no-spaces
+                               data-champs-sanitize-normalize
+                               data-champs-sanitize-lower>
+                        <div class="form-text">Esperado: jose.silva@exemplo.com</div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">Descrição curta (trim + max=20)</label>
+                        <input type="text" class="form-control"
+                               placeholder="Digite um texto grande"
+                               data-champs-sanitize
+                               data-champs-sanitize-trim
+                               data-champs-sanitize-max="20">
+                        <div class="form-text">Esperado: no máximo 20 caracteres</div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">Placa (Mask: AAAA-9999) + Sanitize (upper + normalize)</label>
+                        <input type="text" class="form-control"
+                               placeholder="Digite: abcç1234"
+                               data-champs-mask="AAAA-9999"
+                               data-champs-sanitize
+                               data-champs-sanitize-normalize
+                               data-champs-sanitize-upper>
+                        <div class="form-text">Esperado: ABC?-1234 (dependendo do que você digitar)</div>
+                    </div>
+                </div>
+
+                <hr class="my-4">
+
+                <div class="d-flex flex-wrap gap-2">
+                    <button class="btn btn-outline-secondary btn-sm" id="btnDebugMasked">Escutar champs:masked</button>
+                    <button class="btn btn-outline-secondary btn-sm" id="btnDebugSanitized">Escutar champs:sanitized
+                    </button>
+                </div>
+
+                <pre class="bg-light p-3 border mt-3" id="eventsLog"
+                     style="white-space:pre-wrap; min-height: 120px;"></pre>
+            </div>
+        </div>
+    </section>
+
+    <div class="text-center text-muted small pb-5">
+        Champs Core JS – Página de testes - <a href="#" class="link-secondary" data-champs-consent-open>Gerenciar
+        cookies</a>
+    </div>
+
+</div>
+
+<!-- init -->
+<script type="module" src="/tests/app-init.js"></script>
+
+<!-- Bootstrap bundle -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tom-select/2.4.3/js/tom-select.complete.js" integrity="sha512-cv8SyZZkoW3eB3rWs0JsM/wNxKZe59+tMN8ewVIu24I1EAeBOT6lqkdty/iMxo3OJGvrFRYIrrGwM5BJqAXsYw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+<script>
+    window.debugPayload = function (data) {
+        console.log('POST RECEBIDO:', data);
+    };
+
+    window.afterFill = (data, ctx) => {
+        console.log('[custom afterFill]', data, ctx);
+    };
+
+    window.afterPopulate = (data) => {
+        console.log('[custom afterPopulate]', data);
+    };
+</script>
+
+<script>
+    (function () {
+        const logEl = document.getElementById('remoteSelectLog');
+        const clearBtn = document.getElementById('btnRemoteSelectLogClear');
+        if (!logEl) return;
+
+        function appendLog(line) {
+            const now = new Date();
+            const ts = now.toLocaleTimeString();
+            logEl.textContent = `[${ts}] ${line}\n` + logEl.textContent;
+        }
+
+        clearBtn?.addEventListener('click', () => (logEl.textContent = ''));
+
+        const _fetch = window.fetch;
+        window.fetch = async function (...args) {
+            const url = String(args[0] || '');
+            const isRemoteClients = url.includes('/tests/api/remote_clients.php');
+
+            if (isRemoteClients) appendLog('GET ' + url);
+
+            try {
+                const res = await _fetch.apply(this, args);
+                if (isRemoteClients) appendLog('← ' + res.status + ' ' + res.statusText);
+                return res;
+            } catch (e) {
+                if (isRemoteClients) appendLog('✖ ERROR ' + (e?.message || e));
+                throw e;
+            }
+        };
+    })();
+</script>
+
+</body>
+</html>

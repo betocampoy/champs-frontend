@@ -1,0 +1,10 @@
+{% include '@ChampsFrontend/components/list/grid/_grid.html.twig' with {
+    items: items,
+    cols: cols|default('col-12'),
+    itemTemplate: itemTemplate,
+    itemVar: itemVar|default('item'),
+    cardId: cardId|default(itemsId|default(null)),
+    itemsId: itemsId|default(cardId|default(null)),
+    modelName: modelName|default('model'),
+    extra: extra|default({})
+} only %}

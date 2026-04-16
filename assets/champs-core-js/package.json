@@ -1,0 +1,15 @@
+{
+  "name": "champs-core-js",
+  "version": "1.0.0",
+  "description": "Módulos JS reutilizáveis para Bootstrap, AJAX e interações UX.",
+  "main": "src/Loader.js",
+  "type": "module",
+
+  "scripts": {
+    "start": "echo \"Add your bundler/dev server here\""
+  },
+
+  "keywords": ["champs", "ajax", "bootstrap", "loader"],
+  "author": "Beto",
+  "license": "MIT"
+}

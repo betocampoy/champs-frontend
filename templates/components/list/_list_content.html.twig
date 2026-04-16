@@ -1,0 +1,35 @@
+{% set viewMode = viewMode|default('grid') %}
+{% set modelName = modelName|default('model') %}
+{% set itemsId = itemsId|default(modelName ~ '-items') %}
+
+{% if total > 0 %}
+    {% if viewMode == 'table' %}
+        {% include '@ChampsFrontend/components/list/table/_list_content.html.twig' with {
+            items: items,
+            rowTemplate: rowTemplate|default(itemTemplate|default(null)),
+            itemVar: itemVar|default('item'),
+            tableHead: tableHead|default(null),
+            tableId: tableId|default(itemsId),
+            itemsId: itemsId,
+            modelName: modelName,
+            extra: extra|default({})
+        } only %}
+    {% else %}
+        {% include '@ChampsFrontend/components/list/grid/_list_content.html.twig' with {
+            items: items,
+            cols: cols|default('col-12'),
+            itemTemplate: itemTemplate,
+            itemVar: itemVar|default('item'),
+            cardId: cardId|default(itemsId),
+            itemsId: itemsId,
+            modelName: modelName,
+            extra: extra|default({})
+        } only %}
+    {% endif %}
+{% else %}
+    {% include '@ChampsFrontend/components/list/_empty.html.twig' with {
+        title: emptyTitle|default('Nada encontrado'),
+        message: emptyMessage|default('Nenhum registro localizado no banco de dados!'),
+        icon: emptyIcon|default('bi-inbox')
+    } only %}
+{% endif %}

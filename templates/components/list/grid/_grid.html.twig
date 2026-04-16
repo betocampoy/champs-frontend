@@ -1,0 +1,13 @@
+{% set itemsId = itemsId|default('model') ~ '-items' %}
+
+<div class="row g-3" {% if itemsId %}id="{{ itemsId }}"{% endif %}>
+        {% for item in items %}
+                <div class="{{ cols|default('col-12') }}">
+                        {% include itemTemplate with {
+                                (itemVar|default('item')): item,
+                                modelName: modelName|default('model'),
+                                extra: extra|default({})
+                        } %}
+                </div>
+        {% endfor %}
+</div>

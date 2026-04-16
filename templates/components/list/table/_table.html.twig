@@ -1,0 +1,21 @@
+{% set itemsId = itemsId|default('model') ~ '-items' %}
+
+<div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+        {% if tableHead is defined and tableHead %}
+            <thead>
+            {{ tableHead|raw }}
+            </thead>
+        {% endif %}
+
+        <tbody {% if itemsId %}id="{{ itemsId }}"{% endif %}>
+        {% for item in items %}
+            {% include rowTemplate with {
+                (itemVar|default('item')): item,
+                modelName: modelName|default('model'),
+                extra: extra|default({})
+            } %}
+        {% endfor %}
+        </tbody>
+    </table>
+</div>

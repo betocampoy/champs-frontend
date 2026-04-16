@@ -1,0 +1,15 @@
+<div class="text-center py-5">
+    {% if icon is defined and icon %}
+        <div class="mb-3">
+            <i class="bi {{ icon }} fs-1 text-muted"></i>
+        </div>
+    {% endif %}
+
+    <div class="fw-semibold mb-1">
+        {{ title|default('Nada encontrado') }}
+    </div>
+
+    <div class="text-muted">
+        {{ message|default('Nenhum registro localizado.') }}
+    </div>
+</div>

@@ -1,0 +1,1316 @@
+{# templates/ui/_form.html.twig #}
+
+{# ============================================================
+  MACRO: attrs(attrs)
+  Objetivo: imprimir atributos HTML a partir de um map/dict
+
+  Exemplo:
+  {{ ui.attrs({ 'data-x': '1', 'aria-label': 'Teste', disabled: true }) }}
+
+  Resultado:
+  data-x="1" aria-label="Teste" disabled
+============================================================ #}
+{% macro attrs(attrs) %}
+    {% for k, v in attrs|default({}) %}
+        {% if v is same as(true) %}
+            {{- ' ' ~ k -}}
+        {% elseif v is not same as(false) and v is not null %}
+            {{- ' ' ~ k -}}="{{ v|e('html_attr') }}"
+        {% endif %}
+    {% endfor %}
+{% endmacro %}
+
+
+{# ============================================================
+  MACRO: button(cfg)
+  Objetivo: renderizar botão genérico, sem obrigar data-champs-ajax
+
+  Exemplo:
+  {{ ui.button({
+      classes: 'btn btn-secondary',
+      icon: 'bi-gear',
+      title: 'Ação local',
+      label: 'Executar',
+      attrs: {
+        onclick: 'acaoLocal(this)',
+        'data-id': 10
+      }
+  }) }}
+============================================================ #}
+{% macro button(cfg) %}
+    {% import _self as ui %}
+
+    {% set type = cfg.type|default('button') %}
+    {% set classes = cfg.classes|default('btn btn-primary') %}
+    {% set icon = cfg.icon|default(null) %}
+    {% set title = cfg.title|default(null) %}
+    {% set label = cfg.label|default('') %}
+    {% set attrs = cfg.attrs|default({}) %}
+
+    <button
+            type="{{ type }}"
+            class="{{ classes }}"
+            {% if title %}title="{{ title }}"{% endif %}
+            {{ ui.attrs(attrs) }}
+    >
+        {% if icon %}<i class="bi {{ icon }}"></i>{% endif %}
+        {{ label }}
+    </button>
+{% endmacro %}
+
+
+{# ============================================================
+  MACRO: ajaxButton(cfg)
+  Objetivo: botão com data-champs-ajax
+
+  Exemplo:
+  {{ ui.ajaxButton({
+      classes: 'btn btn-primary',
+      icon: 'bi-check2',
+      title: 'Salvar',
+      label: 'Salvar',
+      route: 'razoes_sociais-post.php',
+      withInputs: true,
+      fields: { action: 'update', empresa_id: empresa.id },
+      attrs: { 'data-champs-ajax-priorize-data-attr': 'action' }
+  }) }}
+============================================================ #}
+{% macro ajaxButton(cfg) %}
+    {% import _self as ui %}
+
+    {% set route = cfg.route|default('') %}
+    {% set withInputs = cfg.withInputs|default(false) %}
+    {% set fields = cfg.fields|default({}) %}
+    {% set attrs = cfg.attrs|default({}) %}
+
+    {% set ajaxAttrs = {
+        'data-champs-ajax': true,
+        'data-champs-ajax-route': route,
+        'data-champs-ajax-with-inputs': withInputs ? 'true' : 'false'
+    } %}
+
+    {% for k, v in fields %}
+        {% set ajaxAttrs = ajaxAttrs|merge({
+            ('data-champs-ajax-field-' ~ k): v
+        }) %}
+    {% endfor %}
+
+    {{ ui.button(cfg|merge({
+        attrs: ajaxAttrs|merge(attrs)
+    })) }}
+{% endmacro %}
+
+
+{# ============================================================
+  MACRO: renderButton(cfg)
+  Objetivo: decidir automaticamente qual macro usar para renderizar
+  o botão dentro dos groups.
+
+  mode:
+  - ajax   => usa ui.ajaxButton(cfg)
+  - button => usa ui.button(cfg)
+  - default: button
+============================================================ #}
+{% macro renderButton(cfg) %}
+    {% import _self as ui %}
+
+    {% set mode = cfg.mode|default('button') %}
+
+    {% if mode == 'ajax' %}
+        {{ ui.ajaxButton(cfg) }}
+    {% else %}
+        {{ ui.button(cfg) }}
+    {% endif %}
+{% endmacro %}
+
+
+{# ============================================================
+  MACRO: input(cfg)
+  Objetivo: dispatcher para estilos de input
+
+  style:
+  - prefixed (default) => usa inputGroup()
+  - inline             => label acima
+  - floating           => floating label
+============================================================ #}
+{% macro input(cfg) %}
+    {% import _self as ui %}
+
+    {% set style = cfg.style|default('prefixed') %}
+
+    {% if style == 'floating' %}
+        {{ ui.inputFloating(cfg) }}
+    {% elseif style == 'inline' %}
+        {{ ui.inputInline(cfg) }}
+    {% else %}
+        {{ ui.inputGroup(cfg) }}
+    {% endif %}
+{% endmacro %}
+
+
+{# ============================================================
+  MACRO: inputGroup(cfg)
+  Objetivo: input com label no input-group + (opcional) botões
+============================================================ #}
+{% macro inputGroup(cfg) %}
+    {% import _self as ui %}
+
+    {% set col = cfg.col|default('col-12') %}
+    {% set wrapperClasses = cfg.wrapperClasses|default('') %}
+    {% set type = cfg.type|default('text') %}
+    {% set id = cfg.id|default(cfg.name) %}
+    {% set value = cfg.value is defined ? cfg.value : '' %}
+    {% set label = cfg.label|default('') %}
+    {% set placeholder = cfg.placeholder|default('') %}
+    {% set readonly = cfg.readonly|default(false) %}
+    {% set disabled = cfg.disabled|default(false) %}
+    {% set required = cfg.required|default(false) %}
+    {% set help = cfg.help|default(null) %}
+    {% set help_raw = cfg.help_raw|default(false) %}
+    {% set attrs = cfg.attrs|default({}) %}
+    {% set buttons = cfg.buttons|default([]) %}
+    {% set groupClasses = cfg.groupClasses|default('') %}
+    {% set labelClasses = cfg.labelClasses|default('') %}
+    {% set inputClasses = cfg.inputClasses|default('') %}
+    {% set helpClasses = cfg.helpClasses|default('') %}
+
+    <div class="{{ col }} {{ wrapperClasses }}">
+        <div class="input-group {{ groupClasses }}">
+            {% if label %}
+                <span class="input-group-text {{ labelClasses }}">{{ label }}</span>
+            {% endif %}
+
+            <input
+                    type="{{ type }}"
+                    class="form-control {{ inputClasses }}"
+                    name="{{ cfg.name }}"
+                    id="{{ id }}"
+                    value="{{ value }}"
+                    placeholder="{{ placeholder }}"
+                    {{ readonly ? 'readonly' : '' }}
+                    {{ disabled ? 'disabled' : '' }}
+                    {{ required ? 'required' : '' }}
+                    {{ ui.attrs(attrs) }}
+            >
+
+            {% for btn in buttons %}
+                {{ ui.renderButton(btn) }}
+            {% endfor %}
+        </div>
+
+        {% if help %}
+            <div class="form-text {{ helpClasses }}">
+                {% if help_raw %}
+                    {{ help|raw }}
+                {% else %}
+                    {{ help }}
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+{% endmacro %}
+
+
+{# ============================================================
+  MACRO: inputInline(cfg)
+  Objetivo: input com label acima
+============================================================ #}
+{% macro inputInline(cfg) %}
+    {% import _self as ui %}
+
+    {% set col = cfg.col|default('col-12') %}
+    {% set wrapperClasses = cfg.wrapperClasses|default('') %}
+    {% set type = cfg.type|default('text') %}
+    {% set id = cfg.id|default(cfg.name) %}
+    {% set value = cfg.value is defined ? cfg.value : '' %}
+    {% set label = cfg.label|default('') %}
+    {% set placeholder = cfg.placeholder|default('') %}
+    {% set readonly = cfg.readonly|default(false) %}
+    {% set disabled = cfg.disabled|default(false) %}
+    {% set required = cfg.required|default(false) %}
+    {% set help = cfg.help|default(null) %}
+    {% set help_raw = cfg.help_raw|default(false) %}
+    {% set attrs = cfg.attrs|default({}) %}
+    {% set buttons = cfg.buttons|default([]) %}
+    {% set groupClasses = cfg.groupClasses|default('') %}
+    {% set inputClasses = cfg.inputClasses|default('') %}
+    {% set helpClasses = cfg.helpClasses|default('') %}
+
+    <div class="{{ col }} {{ wrapperClasses }}">
+        {% if label %}
+            <label for="{{ id }}" class="form-label">{{ label }}</label>
+        {% endif %}
+
+        {% if buttons|length > 0 %}
+        <div class="input-group {{ groupClasses }}">
+            {% endif %}
+
+            <input
+                    type="{{ type }}"
+                    class="form-control {{ inputClasses }}"
+                    name="{{ cfg.name }}"
+                    id="{{ id }}"
+                    value="{{ value }}"
+                    placeholder="{{ placeholder }}"
+                    {{ readonly ? 'readonly' : '' }}
+                    {{ disabled ? 'disabled' : '' }}
+                    {{ required ? 'required' : '' }}
+                    {{ ui.attrs(attrs) }}
+            >
+
+            {% for btn in buttons %}
+                {{ ui.renderButton(btn) }}
+            {% endfor %}
+
+            {% if buttons|length > 0 %}
+        </div>
+        {% endif %}
+
+        {% if help %}
+            <div class="form-text {{ helpClasses }}">
+                {% if help_raw %}
+                    {{ help|raw }}
+                {% else %}
+                    {{ help }}
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+{% endmacro %}
+
+
+{# ============================================================
+  MACRO: inputFloating(cfg)
+  Objetivo: input com floating label
+============================================================ #}
+{% macro inputFloating(cfg) %}
+    {% import _self as ui %}
+
+    {% set col = cfg.col|default('col-12') %}
+    {% set wrapperClasses = cfg.wrapperClasses|default('') %}
+    {% set type = cfg.type|default('text') %}
+    {% set id = cfg.id|default(cfg.name) %}
+    {% set value = cfg.value is defined ? cfg.value : '' %}
+    {% set label = cfg.label|default('') %}
+    {% set readonly = cfg.readonly|default(false) %}
+    {% set disabled = cfg.disabled|default(false) %}
+    {% set required = cfg.required|default(false) %}
+    {% set help = cfg.help|default(null) %}
+    {% set help_raw = cfg.help_raw|default(false) %}
+    {% set attrs = cfg.attrs|default({}) %}
+    {% set buttons = cfg.buttons|default([]) %}
+    {% set groupClasses = cfg.groupClasses|default('') %}
+    {% set inputClasses = cfg.inputClasses|default('') %}
+    {% set helpClasses = cfg.helpClasses|default('') %}
+
+    <div class="{{ col }} {{ wrapperClasses }}">
+        {% if buttons|length > 0 %}
+        <div class="input-group {{ groupClasses }}">
+            {% endif %}
+
+            <div class="form-floating">
+                <input
+                        type="{{ type }}"
+                        class="form-control {{ inputClasses }}"
+                        name="{{ cfg.name }}"
+                        id="{{ id }}"
+                        value="{{ value }}"
+                        placeholder="{{ label }}"
+                        {{ readonly ? 'readonly' : '' }}
+                        {{ disabled ? 'disabled' : '' }}
+                        {{ required ? 'required' : '' }}
+                        {{ ui.attrs(attrs) }}
+                >
+                <label for="{{ id }}">{{ label }}</label>
+            </div>
+
+            {% for btn in buttons %}
+                {{ ui.renderButton(btn) }}
+            {% endfor %}
+
+            {% if buttons|length > 0 %}
+        </div>
+        {% endif %}
+
+        {% if help %}
+            <div class="form-text {{ helpClasses }}">
+                {% if help_raw %}
+                    {{ help|raw }}
+                {% else %}
+                    {{ help }}
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+{% endmacro %}
+
+
+{# ============================================================
+  MACRO: select(cfg)
+  Objetivo: dispatcher para estilos de select
+
+  style:
+  - prefixed (default) => usa selectGroup()
+  - inline             => label acima
+  - floating           => floating label
+============================================================ #}
+{% macro select(cfg) %}
+    {% import _self as ui %}
+
+    {% set style = cfg.style|default('prefixed') %}
+
+    {% if style == 'floating' %}
+        {{ ui.selectFloating(cfg) }}
+    {% elseif style == 'inline' %}
+        {{ ui.selectInline(cfg) }}
+    {% else %}
+        {{ ui.selectGroup(cfg) }}
+    {% endif %}
+{% endmacro %}
+
+
+{# ============================================================
+  MACRO: selectGroup(cfg)
+  Objetivo: select local (options) + (opcional) botões
+============================================================ #}
+{% macro selectGroup(cfg) %}
+    {% import _self as ui %}
+
+    {% set col = cfg.col|default('col-12') %}
+    {% set wrapperClasses = cfg.wrapperClasses|default('') %}
+    {% set id = cfg.id|default(cfg.name) %}
+    {% set label = cfg.label|default('') %}
+    {% set placeholder = cfg.placeholder|default('') %}
+    {% set selected = cfg.selected is defined ? cfg.selected : '' %}
+    {% set required = cfg.required|default(false) %}
+    {% set disabled = cfg.disabled|default(false) %}
+    {% set help = cfg.help|default(null) %}
+    {% set help_raw = cfg.help_raw|default(false) %}
+    {% set attrs = cfg.attrs|default({}) %}
+    {% set options = cfg.options|default([]) %}
+    {% set buttons = cfg.buttons|default([]) %}
+    {% set groupClasses = cfg.groupClasses|default('') %}
+    {% set labelClasses = cfg.labelClasses|default('') %}
+    {% set selectClasses = cfg.selectClasses|default('') %}
+    {% set helpClasses = cfg.helpClasses|default('') %}
+
+    <div class="{{ col }} {{ wrapperClasses }}">
+        <div class="input-group {{ groupClasses }}">
+            {% if label %}
+                <span class="input-group-text {{ labelClasses }}">{{ label }}</span>
+            {% endif %}
+
+            <select
+                    class="form-select {{ selectClasses }}"
+                    name="{{ cfg.name }}"
+                    id="{{ id }}"
+                    {{ required ? 'required' : '' }}
+                    {{ disabled ? 'disabled' : '' }}
+                    {{ ui.attrs(attrs) }}
+            >
+                {% if placeholder %}
+                    <option value="" disabled selected
+                    >{{ placeholder }}</option>
+                {% endif %}
+
+                {% for opt in options %}
+                    {% set optValue = opt.value is defined ? opt.value : '' %}
+                    {% set optLabel = opt.label is defined ? opt.label : '' %}
+                    {% set optDisabled = opt.disabled|default(false) %}
+                    {% set isSelected = (optValue ~ '') == (selected ~ '') %}
+
+                    <option
+                            value="{{ optValue }}"
+                            {{ isSelected ? 'selected' : '' }}
+                            {{ optDisabled ? 'disabled' : '' }}
+                    >{{ optLabel }}</option>
+                {% endfor %}
+            </select>
+
+            {% for btn in buttons %}
+                {{ ui.renderButton(btn) }}
+            {% endfor %}
+        </div>
+
+        {% if help %}
+            <div class="form-text {{ helpClasses }}">
+                {% if help_raw %}
+                    {{ help|raw }}
+                {% else %}
+                    {{ help }}
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+{% endmacro %}
+
+
+{# ============================================================
+  MACRO: selectInline(cfg)
+  Objetivo: select local com label acima
+============================================================ #}
+{% macro selectInline(cfg) %}
+    {% import _self as ui %}
+
+    {% set col = cfg.col|default('col-12') %}
+    {% set wrapperClasses = cfg.wrapperClasses|default('') %}
+    {% set id = cfg.id|default(cfg.name) %}
+    {% set label = cfg.label|default('') %}
+    {% set placeholder = cfg.placeholder|default('') %}
+    {% set selected = cfg.selected is defined ? cfg.selected : '' %}
+    {% set required = cfg.required|default(false) %}
+    {% set disabled = cfg.disabled|default(false) %}
+    {% set help = cfg.help|default(null) %}
+    {% set help_raw = cfg.help_raw|default(false) %}
+    {% set attrs = cfg.attrs|default({}) %}
+    {% set options = cfg.options|default([]) %}
+    {% set buttons = cfg.buttons|default([]) %}
+    {% set groupClasses = cfg.groupClasses|default('') %}
+    {% set selectClasses = cfg.selectClasses|default('') %}
+    {% set helpClasses = cfg.helpClasses|default('') %}
+
+    <div class="{{ col }} {{ wrapperClasses }}">
+        {% if label %}
+            <label for="{{ id }}" class="form-label">{{ label }}</label>
+        {% endif %}
+
+        {% if buttons|length > 0 %}
+        <div class="input-group {{ groupClasses }}">
+            {% endif %}
+
+            <select
+                    class="form-select {{ selectClasses }}"
+                    name="{{ cfg.name }}"
+                    id="{{ id }}"
+                    {{ required ? 'required' : '' }}
+                    {{ disabled ? 'disabled' : '' }}
+                    {{ ui.attrs(attrs) }}
+            >
+                {% if placeholder %}
+                    <option value="" disabled selected
+                    >{{ placeholder }}</option>
+                {% endif %}
+
+                {% for opt in options %}
+                    {% set optValue = opt.value is defined ? opt.value : '' %}
+                    {% set optLabel = opt.label is defined ? opt.label : '' %}
+                    {% set optDisabled = opt.disabled|default(false) %}
+                    {% set isSelected = (optValue ~ '') == (selected ~ '') %}
+
+                    <option
+                            value="{{ optValue }}"
+                            {{ isSelected ? 'selected' : '' }}
+                            {{ optDisabled ? 'disabled' : '' }}
+                    >{{ optLabel }}</option>
+                {% endfor %}
+            </select>
+
+            {% for btn in buttons %}
+                {{ ui.renderButton(btn) }}
+            {% endfor %}
+
+            {% if buttons|length > 0 %}
+        </div>
+        {% endif %}
+
+        {% if help %}
+            <div class="form-text {{ helpClasses }}">
+                {% if help_raw %}
+                    {{ help|raw }}
+                {% else %}
+                    {{ help }}
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+{% endmacro %}
+
+
+{# ============================================================
+  MACRO: selectFloating(cfg)
+  Objetivo: select local com floating label
+============================================================ #}
+{% macro selectFloating(cfg) %}
+    {% import _self as ui %}
+
+    {% set col = cfg.col|default('col-12') %}
+    {% set wrapperClasses = cfg.wrapperClasses|default('') %}
+    {% set id = cfg.id|default(cfg.name) %}
+    {% set label = cfg.label|default('') %}
+    {% set placeholder = cfg.placeholder|default('') %}
+    {% set selected = cfg.selected is defined ? cfg.selected : '' %}
+    {% set required = cfg.required|default(false) %}
+    {% set disabled = cfg.disabled|default(false) %}
+    {% set help = cfg.help|default(null) %}
+    {% set help_raw = cfg.help_raw|default(false) %}
+    {% set attrs = cfg.attrs|default({}) %}
+    {% set options = cfg.options|default([]) %}
+    {% set buttons = cfg.buttons|default([]) %}
+    {% set groupClasses = cfg.groupClasses|default('') %}
+    {% set selectClasses = cfg.selectClasses|default('') %}
+    {% set helpClasses = cfg.helpClasses|default('') %}
+
+    <div class="{{ col }} {{ wrapperClasses }}">
+        {% if buttons|length > 0 %}
+        <div class="input-group {{ groupClasses }}">
+            {% endif %}
+
+            <div class="form-floating">
+                <select
+                        class="form-select {{ selectClasses }}"
+                        name="{{ cfg.name }}"
+                        id="{{ id }}"
+                        {{ required ? 'required' : '' }}
+                        {{ disabled ? 'disabled' : '' }}
+                        {{ ui.attrs(attrs) }}
+                >
+                    {% if placeholder %}
+                        <option value="" disabled selected
+                        >{{ placeholder }}</option>
+                    {% endif %}
+
+                    {% for opt in options %}
+                        {% set optValue = opt.value is defined ? opt.value : '' %}
+                        {% set optLabel = opt.label is defined ? opt.label : '' %}
+                        {% set optDisabled = opt.disabled|default(false) %}
+                        {% set isSelected = (optValue ~ '') == (selected ~ '') %}
+
+                        <option
+                                value="{{ optValue }}"
+                                {{ isSelected ? 'selected' : '' }}
+                                {{ optDisabled ? 'disabled' : '' }}
+                        >{{ optLabel }}</option>
+                    {% endfor %}
+                </select>
+                <label for="{{ id }}">{{ label }}</label>
+            </div>
+
+            {% for btn in buttons %}
+                {{ ui.renderButton(btn) }}
+            {% endfor %}
+
+            {% if buttons|length > 0 %}
+        </div>
+        {% endif %}
+
+        {% if help %}
+            <div class="form-text {{ helpClasses }}">
+                {% if help_raw %}
+                    {{ help|raw }}
+                {% else %}
+                    {{ help }}
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+{% endmacro %}
+
+{# ============================================================
+  MACRO: textarea(cfg)
+  Objetivo: dispatcher para estilos de textarea
+
+  style:
+  - prefixed (default) => usa textareaGroup()
+  - inline             => label acima
+  - floating           => floating label
+============================================================ #}
+{% macro textarea(cfg) %}
+    {% import _self as ui %}
+
+    {% set style = cfg.style|default('prefixed') %}
+
+    {% if style == 'floating' %}
+        {{ ui.textareaFloating(cfg) }}
+    {% elseif style == 'inline' %}
+        {{ ui.textareaInline(cfg) }}
+    {% else %}
+        {{ ui.textareaGroup(cfg) }}
+    {% endif %}
+{% endmacro %}
+
+
+{# ============================================================
+  MACRO: textareaGroup(cfg)
+  Objetivo: textarea com label no input-group + (opcional) botões
+============================================================ #}
+{% macro textareaGroup(cfg) %}
+    {% import _self as ui %}
+
+    {% set col = cfg.col|default('col-12') %}
+    {% set wrapperClasses = cfg.wrapperClasses|default('') %}
+    {% set id = cfg.id|default(cfg.name) %}
+    {% set value = cfg.value is defined ? cfg.value : '' %}
+    {% set label = cfg.label|default('') %}
+    {% set placeholder = cfg.placeholder|default('') %}
+    {% set readonly = cfg.readonly|default(false) %}
+    {% set disabled = cfg.disabled|default(false) %}
+    {% set required = cfg.required|default(false) %}
+    {% set rows = cfg.rows|default(3) %}
+    {% set help = cfg.help|default(null) %}
+    {% set help_raw = cfg.help_raw|default(false) %}
+    {% set attrs = cfg.attrs|default({}) %}
+    {% set buttons = cfg.buttons|default([]) %}
+    {% set groupClasses = cfg.groupClasses|default('') %}
+    {% set labelClasses = cfg.labelClasses|default('') %}
+    {% set textareaClasses = cfg.textareaClasses|default('') %}
+    {% set helpClasses = cfg.helpClasses|default('') %}
+
+    <div class="{{ col }} {{ wrapperClasses }}">
+        <div class="input-group {{ groupClasses }}">
+            {% if label %}
+                <span class="input-group-text {{ labelClasses }}">{{ label }}</span>
+            {% endif %}
+
+            <textarea
+                    class="form-control {{ textareaClasses }}"
+                    name="{{ cfg.name }}"
+                    id="{{ id }}"
+                    rows="{{ rows }}"
+                    placeholder="{{ placeholder }}"
+                    {{ readonly ? 'readonly' : '' }}
+                    {{ disabled ? 'disabled' : '' }}
+                    {{ required ? 'required' : '' }}
+                    {{ ui.attrs(attrs) }}
+            >{{ value }}</textarea>
+
+            {% for btn in buttons %}
+                {{ ui.renderButton(btn) }}
+            {% endfor %}
+        </div>
+
+        {% if help %}
+            <div class="form-text {{ helpClasses }}">
+                {% if help_raw %}
+                    {{ help|raw }}
+                {% else %}
+                    {{ help }}
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+{% endmacro %}
+
+
+{# ============================================================
+  MACRO: textareaInline(cfg)
+  Objetivo: textarea com label acima
+============================================================ #}
+{% macro textareaInline(cfg) %}
+    {% import _self as ui %}
+
+    {% set col = cfg.col|default('col-12') %}
+    {% set wrapperClasses = cfg.wrapperClasses|default('') %}
+    {% set id = cfg.id|default(cfg.name) %}
+    {% set value = cfg.value is defined ? cfg.value : '' %}
+    {% set label = cfg.label|default('') %}
+    {% set placeholder = cfg.placeholder|default('') %}
+    {% set readonly = cfg.readonly|default(false) %}
+    {% set disabled = cfg.disabled|default(false) %}
+    {% set required = cfg.required|default(false) %}
+    {% set rows = cfg.rows|default(3) %}
+    {% set help = cfg.help|default(null) %}
+    {% set help_raw = cfg.help_raw|default(false) %}
+    {% set attrs = cfg.attrs|default({}) %}
+    {% set buttons = cfg.buttons|default([]) %}
+    {% set groupClasses = cfg.groupClasses|default('') %}
+    {% set textareaClasses = cfg.textareaClasses|default('') %}
+    {% set helpClasses = cfg.helpClasses|default('') %}
+
+    <div class="{{ col }} {{ wrapperClasses }}">
+        {% if label %}
+            <label for="{{ id }}" class="form-label">{{ label }}</label>
+        {% endif %}
+
+        {% if buttons|length > 0 %}
+        <div class="input-group {{ groupClasses }}">
+            {% endif %}
+
+            <textarea
+                    class="form-control {{ textareaClasses }}"
+                    name="{{ cfg.name }}"
+                    id="{{ id }}"
+                    rows="{{ rows }}"
+                    placeholder="{{ placeholder }}"
+                    {{ readonly ? 'readonly' : '' }}
+                    {{ disabled ? 'disabled' : '' }}
+                    {{ required ? 'required' : '' }}
+                    {{ ui.attrs(attrs) }}
+            >{{ value }}</textarea>
+
+            {% for btn in buttons %}
+                {{ ui.renderButton(btn) }}
+            {% endfor %}
+
+            {% if buttons|length > 0 %}
+        </div>
+        {% endif %}
+
+        {% if help %}
+            <div class="form-text {{ helpClasses }}">
+                {% if help_raw %}
+                    {{ help|raw }}
+                {% else %}
+                    {{ help }}
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+{% endmacro %}
+
+
+{# ============================================================
+  MACRO: textareaFloating(cfg)
+  Objetivo: textarea com floating label
+============================================================ #}
+{% macro textareaFloating(cfg) %}
+    {% import _self as ui %}
+
+    {% set col = cfg.col|default('col-12') %}
+    {% set wrapperClasses = cfg.wrapperClasses|default('') %}
+    {% set id = cfg.id|default(cfg.name) %}
+    {% set value = cfg.value is defined ? cfg.value : '' %}
+    {% set label = cfg.label|default('') %}
+    {% set readonly = cfg.readonly|default(false) %}
+    {% set disabled = cfg.disabled|default(false) %}
+    {% set required = cfg.required|default(false) %}
+    {% set rows = cfg.rows|default(3) %}
+    {% set help = cfg.help|default(null) %}
+    {% set help_raw = cfg.help_raw|default(false) %}
+    {% set attrs = cfg.attrs|default({}) %}
+    {% set buttons = cfg.buttons|default([]) %}
+    {% set groupClasses = cfg.groupClasses|default('') %}
+    {% set textareaClasses = cfg.textareaClasses|default('') %}
+    {% set helpClasses = cfg.helpClasses|default('') %}
+
+    <div class="{{ col }} {{ wrapperClasses }}">
+        {% if buttons|length > 0 %}
+        <div class="input-group {{ groupClasses }}">
+            {% endif %}
+
+            <div class="form-floating">
+                <textarea
+                        class="form-control {{ textareaClasses }}"
+                        name="{{ cfg.name }}"
+                        id="{{ id }}"
+                        rows="{{ rows }}"
+                        placeholder="{{ label }}"
+                        {{ readonly ? 'readonly' : '' }}
+                        {{ disabled ? 'disabled' : '' }}
+                        {{ required ? 'required' : '' }}
+                        {{ ui.attrs(attrs) }}
+                >{{ value }}</textarea>
+                <label for="{{ id }}">{{ label }}</label>
+            </div>
+
+            {% for btn in buttons %}
+                {{ ui.renderButton(btn) }}
+            {% endfor %}
+
+            {% if buttons|length > 0 %}
+        </div>
+        {% endif %}
+
+        {% if help %}
+            <div class="form-text {{ helpClasses }}">
+                {% if help_raw %}
+                    {{ help|raw }}
+                {% else %}
+                    {{ help }}
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+{% endmacro %}
+
+{# ============================================================
+  MACRO: remoteSelect(cfg)
+  Objetivo: dispatcher para estilos de remote select
+
+  style:
+  - prefixed (default) => usa remoteSelectGroup()
+  - inline             => label acima
+  - floating           => floating label
+============================================================ #}
+{% macro remoteSelect(cfg) %}
+    {% import _self as ui %}
+
+    {% set style = cfg.style|default('prefixed') %}
+
+    {% if style == 'floating' %}
+        {{ ui.remoteSelectFloating(cfg) }}
+    {% elseif style == 'inline' %}
+        {{ ui.remoteSelectInline(cfg) }}
+    {% else %}
+        {{ ui.remoteSelectGroup(cfg) }}
+    {% endif %}
+{% endmacro %}
+
+
+{# ============================================================
+  MACRO: remoteSelectGroup(cfg)
+  Objetivo: select remoto (TomSelect) disparado por data-champs-remote-select
+  Observação: o "value inicial" aqui é uma <option selected>
+============================================================ #}
+{% macro remoteSelectGroup(cfg) %}
+    {% import _self as ui %}
+
+    {% set col = cfg.col|default('col-12') %}
+    {% set wrapperClasses = cfg.wrapperClasses|default('') %}
+    {% set id = cfg.id|default(cfg.name) %}
+    {% set label = cfg.label|default('') %}
+    {% set name = cfg.name %}
+    {% set required = cfg.required|default(false) %}
+    {% set disabled = cfg.disabled|default(false) %}
+    {% set help = cfg.help|default(null) %}
+    {% set help_raw = cfg.help_raw|default(false) %}
+    {% set attrs = cfg.attrs|default({}) %}
+    {% set buttons = cfg.buttons|default([]) %}
+    {% set groupClasses = cfg.groupClasses|default('') %}
+    {% set labelClasses = cfg.labelClasses|default('') %}
+    {% set selectClasses = cfg.selectClasses|default('') %}
+    {% set helpClasses = cfg.helpClasses|default('') %}
+
+    {% set url = cfg.url|default('') %}
+    {% set placeholder = cfg.placeholder|default('') %}
+    {% set minChars = cfg.minChars is defined ? cfg.minChars : null %}
+    {% set perPage = cfg.perPage is defined ? cfg.perPage : null %}
+    {% set allowClear = cfg.allowClear is defined ? cfg.allowClear : null %}
+
+    {% set selectedId = cfg.selectedId is defined ? cfg.selectedId : null %}
+    {% set selectedLabel = cfg.selectedLabel is defined ? cfg.selectedLabel : null %}
+
+    <div class="{{ col }} {{ wrapperClasses }}">
+        <div class="input-group {{ groupClasses }}">
+            {% if label %}
+                <span class="input-group-text {{ labelClasses }}">{{ label }}</span>
+            {% endif %}
+
+            <select
+                    class="form-select {{ selectClasses }}"
+                    name="{{ name }}"
+                    id="{{ id }}"
+                    data-champs-remote-select="true"
+                    data-champs-remote-select-url="{{ url }}"
+                    {% if placeholder %}data-champs-remote-select-placeholder="{{ placeholder }}"{% endif %}
+                    {% if minChars is not null %}data-champs-remote-select-min-chars="{{ minChars }}"{% endif %}
+                    {% if perPage is not null %}data-champs-remote-select-per-page="{{ perPage }}"{% endif %}
+                    {% if allowClear is not null %}data-champs-remote-select-allow-clear="{{ allowClear ? 'true' : 'false' }}"{% endif %}
+                    {{ required ? 'required' : '' }}
+                    {{ disabled ? 'disabled' : '' }}
+                    {{ ui.attrs(attrs) }}
+            >
+                {% if selectedId is not null and selectedLabel is not null %}
+                    <option value="{{ selectedId }}" selected>{{ selectedLabel }}</option>
+                {% else %}
+                    <option value=""></option>
+                {% endif %}
+            </select>
+
+            {% for btn in buttons %}
+                {{ ui.renderButton(btn) }}
+            {% endfor %}
+        </div>
+
+        {% if help %}
+            <div class="form-text {{ helpClasses }}">
+                {% if help_raw %}
+                    {{ help|raw }}
+                {% else %}
+                    {{ help }}
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+{% endmacro %}
+
+
+{# ============================================================
+  MACRO: remoteSelectInline(cfg)
+  Objetivo: remote select com label acima
+============================================================ #}
+{% macro remoteSelectInline(cfg) %}
+    {% import _self as ui %}
+
+    {% set col = cfg.col|default('col-12') %}
+    {% set wrapperClasses = cfg.wrapperClasses|default('') %}
+    {% set id = cfg.id|default(cfg.name) %}
+    {% set label = cfg.label|default('') %}
+    {% set name = cfg.name %}
+    {% set required = cfg.required|default(false) %}
+    {% set disabled = cfg.disabled|default(false) %}
+    {% set help = cfg.help|default(null) %}
+    {% set help_raw = cfg.help_raw|default(false) %}
+    {% set attrs = cfg.attrs|default({}) %}
+    {% set buttons = cfg.buttons|default([]) %}
+    {% set groupClasses = cfg.groupClasses|default('') %}
+    {% set selectClasses = cfg.selectClasses|default('') %}
+    {% set helpClasses = cfg.helpClasses|default('') %}
+
+    {% set url = cfg.url|default('') %}
+    {% set placeholder = cfg.placeholder|default('') %}
+    {% set minChars = cfg.minChars is defined ? cfg.minChars : null %}
+    {% set perPage = cfg.perPage is defined ? cfg.perPage : null %}
+    {% set allowClear = cfg.allowClear is defined ? cfg.allowClear : null %}
+
+    {% set selectedId = cfg.selectedId is defined ? cfg.selectedId : null %}
+    {% set selectedLabel = cfg.selectedLabel is defined ? cfg.selectedLabel : null %}
+
+    <div class="{{ col }} {{ wrapperClasses }}">
+        {% if label %}
+            <label for="{{ id }}" class="form-label">{{ label }}</label>
+        {% endif %}
+
+        {% if buttons|length > 0 %}
+        <div class="input-group {{ groupClasses }}">
+            {% endif %}
+
+            <select
+                    class="form-select {{ selectClasses }}"
+                    name="{{ name }}"
+                    id="{{ id }}"
+                    data-champs-remote-select="true"
+                    data-champs-remote-select-url="{{ url }}"
+                    {% if placeholder %}data-champs-remote-select-placeholder="{{ placeholder }}"{% endif %}
+                    {% if minChars is not null %}data-champs-remote-select-min-chars="{{ minChars }}"{% endif %}
+                    {% if perPage is not null %}data-champs-remote-select-per-page="{{ perPage }}"{% endif %}
+                    {% if allowClear is not null %}data-champs-remote-select-allow-clear="{{ allowClear ? 'true' : 'false' }}"{% endif %}
+                    {{ required ? 'required' : '' }}
+                    {{ disabled ? 'disabled' : '' }}
+                    {{ ui.attrs(attrs) }}
+            >
+                {% if selectedId is not null and selectedLabel is not null %}
+                    <option value="{{ selectedId }}" selected>{{ selectedLabel }}</option>
+                {% else %}
+                    <option value=""></option>
+                {% endif %}
+            </select>
+
+            {% for btn in buttons %}
+                {{ ui.renderButton(btn) }}
+            {% endfor %}
+
+            {% if buttons|length > 0 %}
+        </div>
+        {% endif %}
+
+        {% if help %}
+            <div class="form-text {{ helpClasses }}">
+                {% if help_raw %}
+                    {{ help|raw }}
+                {% else %}
+                    {{ help }}
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+{% endmacro %}
+
+
+{# ============================================================
+  MACRO: remoteSelectFloating(cfg)
+  Objetivo: remote select com floating label
+============================================================ #}
+{% macro remoteSelectFloating(cfg) %}
+    {% import _self as ui %}
+
+    {% set col = cfg.col|default('col-12') %}
+    {% set wrapperClasses = cfg.wrapperClasses|default('') %}
+    {% set id = cfg.id|default(cfg.name) %}
+    {% set label = cfg.label|default('') %}
+    {% set name = cfg.name %}
+    {% set required = cfg.required|default(false) %}
+    {% set disabled = cfg.disabled|default(false) %}
+    {% set help = cfg.help|default(null) %}
+    {% set help_raw = cfg.help_raw|default(false) %}
+    {% set attrs = cfg.attrs|default({}) %}
+    {% set buttons = cfg.buttons|default([]) %}
+    {% set groupClasses = cfg.groupClasses|default('') %}
+    {% set selectClasses = cfg.selectClasses|default('') %}
+    {% set helpClasses = cfg.helpClasses|default('') %}
+
+    {% set url = cfg.url|default('') %}
+    {% set placeholder = cfg.placeholder|default('') %}
+    {% set minChars = cfg.minChars is defined ? cfg.minChars : null %}
+    {% set perPage = cfg.perPage is defined ? cfg.perPage : null %}
+    {% set allowClear = cfg.allowClear is defined ? cfg.allowClear : null %}
+
+    {% set selectedId = cfg.selectedId is defined ? cfg.selectedId : null %}
+    {% set selectedLabel = cfg.selectedLabel is defined ? cfg.selectedLabel : null %}
+
+    <div class="{{ col }} {{ wrapperClasses }}">
+        {% if buttons|length > 0 %}
+        <div class="input-group {{ groupClasses }}">
+            {% endif %}
+
+            <div class="form-floating">
+                <select
+                        class="form-select {{ selectClasses }}"
+                        name="{{ name }}"
+                        id="{{ id }}"
+                        data-champs-remote-select="true"
+                        data-champs-remote-select-url="{{ url }}"
+                        {% if placeholder %}data-champs-remote-select-placeholder="{{ placeholder }}"{% endif %}
+                        {% if minChars is not null %}data-champs-remote-select-min-chars="{{ minChars }}"{% endif %}
+                        {% if perPage is not null %}data-champs-remote-select-per-page="{{ perPage }}"{% endif %}
+                        {% if allowClear is not null %}data-champs-remote-select-allow-clear="{{ allowClear ? 'true' : 'false' }}"{% endif %}
+                        {{ required ? 'required' : '' }}
+                        {{ disabled ? 'disabled' : '' }}
+                        {{ ui.attrs(attrs) }}
+                >
+                    {% if selectedId is not null and selectedLabel is not null %}
+                        <option value="{{ selectedId }}" selected>{{ selectedLabel }}</option>
+                    {% else %}
+                        <option value=""></option>
+                    {% endif %}
+                </select>
+                <label for="{{ id }}">{{ label }}</label>
+            </div>
+
+            {% for btn in buttons %}
+                {{ ui.renderButton(btn) }}
+            {% endfor %}
+
+            {% if buttons|length > 0 %}
+        </div>
+        {% endif %}
+
+        {% if help %}
+            <div class="form-text {{ helpClasses }}">
+                {% if help_raw %}
+                    {{ help|raw }}
+                {% else %}
+                    {{ help }}
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+{% endmacro %}
+
+
+{# ============================================================
+  MACRO: checkbox(cfg)
+  Objetivo: checkbox BS5
+============================================================ #}
+{% macro checkbox(cfg) %}
+    {% import _self as ui %}
+
+    {% set col = cfg.col|default('col-12') %}
+    {% set wrapperClasses = cfg.wrapperClasses|default('') %}
+    {% set id = cfg.id|default(cfg.name) %}
+    {% set label = cfg.label|default('') %}
+    {% set checked = cfg.checked|default(false) %}
+    {% set disabled = cfg.disabled|default(false) %}
+    {% set attrs = cfg.attrs|default({}) %}
+    {% set value = cfg.value is defined ? cfg.value : '1' %}
+    {% set checkClasses = cfg.checkClasses|default('') %}
+    {% set inputClasses = cfg.inputClasses|default('') %}
+    {% set labelClasses = cfg.labelClasses|default('') %}
+
+    <div class="{{ col }} {{ wrapperClasses }}">
+        <div class="form-check {{ checkClasses }}">
+            <input
+                    class="form-check-input {{ inputClasses }}"
+                    type="checkbox"
+                    name="{{ cfg.name }}"
+                    id="{{ id }}"
+                    value="{{ value }}"
+                    {{ checked ? 'checked' : '' }}
+                    {{ disabled ? 'disabled' : '' }}
+                    {{ ui.attrs(attrs) }}
+            >
+            <label class="form-check-label {{ labelClasses }}" for="{{ id }}">{{ label }}</label>
+        </div>
+    </div>
+{% endmacro %}
+
+
+{# ============================================================
+  MACRO: radioGroup(cfg)
+  Objetivo: grupo de radios
+============================================================ #}
+{% macro radioGroup(cfg) %}
+    {% import _self as ui %}
+
+    {% set col = cfg.col|default('col-12') %}
+    {% set wrapperClasses = cfg.wrapperClasses|default('') %}
+    {% set name = cfg.name %}
+    {% set selected = cfg.selected is defined ? cfg.selected : '' %}
+    {% set options = cfg.options|default([]) %}
+    {% set itemClasses = cfg.itemClasses|default('') %}
+    {% set inputClasses = cfg.inputClasses|default('') %}
+    {% set labelClasses = cfg.labelClasses|default('') %}
+
+    <div class="{{ col }} {{ wrapperClasses }}">
+        {% for opt in options %}
+            {% set value = opt.value is defined ? opt.value : '' %}
+            {% set label = opt.label is defined ? opt.label : '' %}
+            {% set isChecked = (value ~ '') == (selected ~ '') %}
+            {% set itemId = (cfg.idPrefix|default(name)) ~ '_' ~ loop.index %}
+
+            <div class="form-check {{ itemClasses }}">
+                <input
+                        class="form-check-input {{ inputClasses }}"
+                        type="radio"
+                        name="{{ name }}"
+                        id="{{ itemId }}"
+                        value="{{ value }}"
+                        {{ isChecked ? 'checked' : '' }}
+                >
+                <label class="form-check-label {{ labelClasses }}" for="{{ itemId }}">{{ label }}</label>
+            </div>
+        {% endfor %}
+    </div>
+{% endmacro %}
+
+{# ============================================================
+  MACRO: checkboxCollapseGroup(cfg)
+  Objetivo: grupo de checkboxes colapsável (filtro múltiplo elegante)
+============================================================ #}
+{% macro checkboxCollapseGroup(cfg) %}
+    {% import _self as ui %}
+
+    {% set col = cfg.col|default('col-12') %}
+    {% set wrapperClasses = cfg.wrapperClasses|default('') %}
+    {% set label = cfg.label|default('') %}
+    {% set name = cfg.name %}
+    {% set fieldName = name ends with '[]' ? name : name ~ '[]' %}
+    {% set options = cfg.options|default([]) %}
+    {% set selected = cfg.selected|default([]) %}
+    {% set collapseId = cfg.id|default(name ~ '_collapse') %}
+    {% set help = cfg.help|default(null) %}
+    {% set helpClasses = cfg.helpClasses|default('') %}
+
+    <div class="{{ col }} {{ wrapperClasses }}">
+        {% if label %}
+            <label class="form-label d-flex justify-content-between align-items-center">
+                {{ label }}
+
+                <button
+                        class="btn btn-sm btn-light border"
+                        type="button"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#{{ collapseId }}"
+                        aria-expanded="false"
+                >
+                    <i class="bi bi-funnel"></i>
+                </button>
+            </label>
+        {% endif %}
+
+        <div class="collapse show" id="{{ collapseId }}">
+            <div class="border rounded p-2" style="max-height: 180px; overflow-y: auto;">
+                {% for opt in options %}
+                    {% set value = opt.value %}
+                    {% set optLabel = opt.label %}
+                    {% set checked = value in selected %}
+
+                    <div class="form-check">
+                        <input
+                                class="form-check-input"
+                                type="checkbox"
+                                name="{{ fieldName }}"
+                                value="{{ value }}"
+                                id="{{ collapseId }}_{{ loop.index }}"
+                                {{ checked ? 'checked' : '' }}
+                        >
+                        <label class="form-check-label" for="{{ collapseId }}_{{ loop.index }}">
+                            {{ optLabel }}
+                        </label>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        {% if help %}
+            <div class="form-text {{ helpClasses }}">
+                {{ help }}
+            </div>
+        {% endif %}
+    </div>
+{% endmacro %}
+
+{# ============================================================
+  MACRO: navTabs(cfg)
+  Objetivo: gerar <ul class="nav nav-tabs"> (ou pills) para BS5
+============================================================ #}
+{% macro navTabs(cfg) %}
+    {% import _self as ui %}
+
+    {% set id = cfg.id|default('tabs') %}
+    {% set tabs = cfg.tabs|default([]) %}
+    {% set pills = cfg.pills|default(false) %}
+    {% set fill = cfg.fill|default(false) %}
+    {% set justified = cfg.justified|default(false) %}
+    {% set attrs = cfg.attrs|default({}) %}
+    {% set extraClasses = cfg.classes|default('') %}
+    {% set itemClasses = cfg.itemClasses|default('') %}
+    {% set buttonClasses = cfg.buttonClasses|default('') %}
+
+    <ul
+            class="nav {{ pills ? 'nav-pills' : 'nav-tabs' }} {{ fill ? 'nav-fill' : '' }} {{ justified ? 'nav-justified' : '' }} {{ extraClasses }}"
+            id="{{ id }}"
+            role="tablist"
+            {{ ui.attrs(attrs) }}
+    >
+        {% for t in tabs %}
+            {% set key = t.key %}
+            {% set label = t.label|default(key) %}
+            {% set active = t.active|default(false) %}
+            {% set disabled = t.disabled|default(false) %}
+
+            {% set btnId = id ~ '-' ~ key ~ '-tab' %}
+            {% set paneId = id ~ '-' ~ key %}
+
+            <li class="nav-item {{ itemClasses }}" role="presentation">
+                <button
+                        class="nav-link {{ active ? 'active' : '' }} {{ disabled ? 'disabled' : '' }} {{ buttonClasses }}"
+                        id="{{ btnId }}"
+                        data-bs-toggle="tab"
+                        data-bs-target="#{{ paneId }}"
+                        type="button"
+                        role="tab"
+                        aria-controls="{{ paneId }}"
+                        aria-selected="{{ active ? 'true' : 'false' }}"
+                        {{ disabled ? 'disabled' : '' }}
+                >
+                    {{ label }}
+                </button>
+            </li>
+        {% endfor %}
+    </ul>
+{% endmacro %}
+
+
+{# ============================================================
+  MACRO: tabPaneStart(cfg)
+  Objetivo: abrir o container do TAB PANE de forma padronizada
+============================================================ #}
+{% macro tabPaneStart(cfg) %}
+    {% import _self as ui %}
+
+    {% set navId = cfg.navId|default('tabs') %}
+    {% set key = cfg.key|default('pane') %}
+    {% set active = cfg.active|default(false) %}
+    {% set extraClasses = cfg.classes|default('') %}
+    {% set attrs = cfg.attrs|default({}) %}
+    {% set paneId = navId ~ '-' ~ key %}
+    {% set tabId = navId ~ '-' ~ key ~ '-tab' %}
+
+<div
+        class="tab-pane fade {{ active ? 'show active' : '' }} {{ extraClasses }}"
+        id="{{ paneId }}"
+        role="tabpanel"
+        aria-labelledby="{{ tabId }}"
+        tabindex="0"
+        {{ ui.attrs(attrs) }}
+>
+    {% endmacro %}
+
+
+    {# ============================================================
+  MACRO: tabPaneEnd()
+  Objetivo: fechar o container do TAB PANE
+============================================================ #}
+    {% macro tabPaneEnd() %}
+</div>
+{% endmacro %}

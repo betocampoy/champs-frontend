@@ -1,0 +1,185 @@
+{# templates/ui/_modal.html.twig #}
+
+{# ============================================================
+  MACRO: formModal(cfg)
+  Objetivo:
+  Renderizar um modal BS5 completo e válido, mantendo flexibilidade
+  para montar livremente:
+  - header
+  - body
+  - footer
+  - atributos do modal/dialog/form/content
+
+  Estrutura gerada:
+  <div class="modal" tabindex="-1">
+    <div class="modal-dialog">
+      <form ...>
+        <div class="modal-content">
+          <div class="modal-header">...</div>
+          <div class="modal-body">...</div>
+          <div class="modal-footer">...</div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  ------------------------------------------------------------
+  Exemplo de uso:
+
+  {% import '@ChampsFrontend/components/ui/_modal.html.twig' as modal %}
+  {% import '@ChampsFrontend/components/ui/_form.html.twig' as ui %}
+
+  {% set body %}
+      <div class="ajax_response"></div>
+
+      <div class="row g-3">
+          {{ ui.inputGroup({
+              col: 'col-12',
+              label: 'Descrição',
+              name: 'description',
+              value: item.description|default('')
+          }) }}
+      </div>
+  {% endset %}
+
+  {% set footer %}
+      <div class="d-flex gap-2">
+          {{ ui.renderButton({
+              mode: 'ajax',
+              type: 'button',
+              classes: 'btn btn-primary btn-sm',
+              label: 'Gravar',
+              route: 'meu-endpoint.php',
+              withInputs: true,
+              fields: {
+                  action: 'save'
+              },
+              attrs: {
+                  'data-champs-ajax-priorize-data-attr': 'action'
+              }
+          }) }}
+
+          {{ ui.renderButton({
+              mode: 'button',
+              type: 'button',
+              classes: 'btn btn-danger btn-sm',
+              label: 'Cancelar',
+              attrs: {
+                  'data-bs-dismiss': 'modal'
+              }
+          }) }}
+      </div>
+  {% endset %}
+
+  {{ modal.formModal({
+      title: 'Incluir Registro',
+      body: body,
+      footer: footer,
+      formAttrs: {
+          id: 'formCadastro',
+          method: 'post'
+      },
+      dialogClasses: 'modal-lg'
+  }) }}
+
+  ------------------------------------------------------------
+  Opções disponíveis em cfg:
+
+  - title: string
+      Título do modal.
+
+  - body: string/html
+      Conteúdo do modal-body.
+
+  - footer: string/html
+      Conteúdo do modal-footer.
+
+  - closeButton: bool
+      Exibe botão X no header. Default: true
+
+  - titleTag: string
+      Tag do título. Default: 'h5'
+
+  - modalClasses: string
+      Classes extras em .modal
+
+  - dialogClasses: string
+      Classes extras em .modal-dialog
+      Ex.: modal-sm, modal-lg, modal-xl, modal-dialog-centered
+
+  - contentClasses: string
+      Classes extras em .modal-content
+
+  - headerClasses: string
+      Classes extras em .modal-header
+
+  - bodyClasses: string
+      Classes extras em .modal-body
+
+  - footerClasses: string
+      Classes extras em .modal-footer
+
+  - modalAttrs: dict/map
+      Atributos extras no .modal
+
+  - dialogAttrs: dict/map
+      Atributos extras no .modal-dialog
+
+  - formAttrs: dict/map
+      Atributos extras no <form>
+
+  - contentAttrs: dict/map
+      Atributos extras no .modal-content
+============================================================ #}
+
+{% macro formModal(cfg) %}
+    {% import '@ChampsFrontend/components/ui/_form.html.twig' as ui %}
+
+    {% set title = cfg.title|default('') %}
+    {% set body = cfg.body|default('') %}
+    {% set footer = cfg.footer|default('') %}
+
+    {% set modalClasses = cfg.modalClasses|default('') %}
+    {% set dialogClasses = cfg.dialogClasses|default('') %}
+    {% set contentClasses = cfg.contentClasses|default('') %}
+    {% set headerClasses = cfg.headerClasses|default('') %}
+    {% set bodyClasses = cfg.bodyClasses|default('') %}
+    {% set footerClasses = cfg.footerClasses|default('') %}
+
+    {% set modalAttrs = cfg.modalAttrs|default({}) %}
+    {% set dialogAttrs = cfg.dialogAttrs|default({}) %}
+    {% set formAttrs = cfg.formAttrs|default({}) %}
+    {% set contentAttrs = cfg.contentAttrs|default({}) %}
+
+    {% set closeButton = cfg.closeButton is defined ? cfg.closeButton : true %}
+    {% set titleTag = cfg.titleTag|default('h5') %}
+
+    <div class="modal {{ modalClasses }}" tabindex="-1" {{ ui.attrs(modalAttrs) }}>
+        <div class="modal-dialog {{ dialogClasses }}" {{ ui.attrs(dialogAttrs) }}>
+            <form {{ ui.attrs(formAttrs) }}>
+                <div class="modal-content {{ contentClasses }}" {{ ui.attrs(contentAttrs) }}>
+                    <div class="modal-header {{ headerClasses }}">
+                        <{{ titleTag }} class="modal-title">{{ title }}</{{ titleTag }}>
+
+                    {% if closeButton %}
+                        <button
+                                type="button"
+                                class="btn-close"
+                                data-bs-dismiss="modal"
+                                aria-label="Fechar"
+                        ></button>
+                    {% endif %}
+                    </div>
+
+                    <div class="modal-body {{ bodyClasses }}">
+                        {{ body|raw }}
+                    </div>
+
+                    <div class="modal-footer {{ footerClasses }}">
+                        {{ footer|raw }}
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+{% endmacro %}
