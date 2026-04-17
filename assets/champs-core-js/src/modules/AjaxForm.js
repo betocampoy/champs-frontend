@@ -50,6 +50,12 @@ import { initActionRules, runUiActions, runActionRules, runNamedActionRules } fr
 //    - action "action-rules" => executa regras declarativas inline
 //    - action "named-action-rules" => executa regra registrada em window.ChampsPageActions
 //    - reinit do core após dom-patch
+//
+// ✅ NOVO: submit declarativo no form
+//    - form[data-champs-ajax-submit="true"]
+//    - intercepta submit natural do form
+//    - compatível com Enter, botão submit e requestSubmit()
+//    - reaproveita o pipeline normal do AjaxForm
 
 import Message from './Message.js';
 import { applyValidationError } from './ValidationError.js';
@@ -123,11 +129,22 @@ export function initAjaxForm(scope = document) {
         await handleAjax(trigger);
     });
 
+    document.addEventListener('submit', async (event) => {
+        const form = event.target;
+
+        if (!(form instanceof HTMLFormElement)) return;
+        if (form.dataset.champsAjaxSubmit !== 'true') return;
+
+        event.preventDefault();
+        await handleAjaxFormSubmit(form, event.submitter || null);
+    });
+
     initActionRules(scope);
 
     window.Champs = window.Champs || {};
     window.Champs.AjaxForm = {
         handleAjax,
+        handleAjaxFormSubmit,
         executeActions: (actions, triggerEl) => executeActions(actions, triggerEl),
     };
 }
@@ -284,6 +301,71 @@ export async function handleAjax(triggerEl) {
             }
         }));
     }
+}
+
+export async function handleAjaxFormSubmit(form, submitter = null) {
+    if (!form) return;
+
+    const triggerEl = createFormSubmitTrigger(form, submitter);
+    await handleAjax(triggerEl);
+}
+
+function createFormSubmitTrigger(form, submitter = null) {
+    const trigger = document.createElement('button');
+    trigger.type = 'button';
+
+    trigger.setAttribute('data-champs-ajax', '');
+    trigger.setAttribute('data-champs-ajax-with-inputs', 'true');
+
+    const route = form.dataset.champsAjaxRoute || form.getAttribute('action') || '';
+    const method = form.dataset.champsAjaxMethod || form.getAttribute('method') || 'POST';
+
+    if (route) {
+        trigger.setAttribute('data-champs-ajax-route', route);
+    }
+
+    if (method) {
+        trigger.setAttribute('data-champs-ajax-method', method.toUpperCase());
+    }
+
+    copyDataAttrIfExists(form, trigger, 'data-champs-ajax-confirm');
+    copyDataAttrIfExists(form, trigger, 'data-champs-ajax-disable-button');
+    copyDataAttrIfExists(form, trigger, 'data-champs-ajax-reenable-button');
+    copyDataAttrIfExists(form, trigger, 'data-champs-ajax-priorize-data-attr');
+    copyDataAttrIfExists(form, trigger, 'data-champs-ajax-include-champs-filter');
+    copyDataAttrIfExists(form, trigger, 'data-champs-modal-close-on-action');
+    copyDataAttrIfExists(form, trigger, 'data-champs-loader');
+    copyDataAttrIfExists(form, trigger, 'data-champs-loader-target');
+    copyDataAttrIfExists(form, trigger, 'data-champs-open-new-page');
+    copyDataAttrIfExists(form, trigger, 'data-champs-open-new-page-count');
+    copyDataAttrIfExists(form, trigger, 'data-champs-open-new-page-target');
+    copyDataAttrIfExists(form, trigger, 'data-champs-ajax-open-new-page');
+    copyDataAttrIfExists(form, trigger, 'data-champs-ajax-open-new-page-count');
+    copyDataAttrIfExists(form, trigger, 'data-champs-ajax-open-new-page-target');
+
+    trigger.__champsAjaxFormRef = form;
+    trigger.__champsAjaxSubmitter = submitter || null;
+
+    trigger.closest = function(selector) {
+        if (!selector) return null;
+
+        if (selector === 'form' || selector.includes('form')) {
+            return form;
+        }
+
+        if (typeof form.closest === 'function') {
+            return form.closest(selector);
+        }
+
+        return null;
+    };
+
+    return trigger;
+}
+
+function copyDataAttrIfExists(source, target, attrName) {
+    if (!source?.hasAttribute?.(attrName)) return;
+    target.setAttribute(attrName, source.getAttribute(attrName));
 }
 
 /* ============================= */
@@ -627,6 +709,10 @@ function hasNamedFields(scope) {
 }
 
 function resolveInputScope(triggerEl) {
+    if (triggerEl?.__champsAjaxFormRef) {
+        return triggerEl.__champsAjaxFormRef;
+    }
+
     const explicitForm = triggerEl.getAttribute('data-champs-ajax-form');
     if (explicitForm) {
         const formEl = findTargetElement(explicitForm);
@@ -776,23 +862,6 @@ function mergeChampsFilterIntoFormData(fd, filterFd) {
     return merged;
 }
 
-/**
- * buildFormData(triggerEl)
- *
- * Regras:
- * - data-fields (data-champs-ajax-field-*) são SEMPRE enviados
- * - inputs do escopo só são enviados se data-champs-ajax-with-inputs="true"
- * - Transparência: o valor do elemento gatilho é SEMPRE enviado se tiver name
- *   (mesmo com with-inputs=false), simulando submit normal do campo alterado.
- * - Conflito:
- *   - se with-inputs=true e existir input no escopo, o ESCOPO vence
- *   - exceto campos listados em data-champs-ajax-priorize-data-attr, onde data-attr vence
- * - ChampsFilter:
- *   - se data-champs-ajax-include-champs-filter existir:
- *     - true => busca no DOM inteiro
- *     - seletor => busca apenas dentro do seletor informado
- *   - ignora champs_filter_label_*
- */
 function buildFormData(triggerEl) {
     const route = triggerEl.getAttribute('data-champs-ajax-route') || '';
     const method = (triggerEl.getAttribute('data-champs-ajax-method') || 'POST').toUpperCase();
@@ -813,6 +882,13 @@ function buildFormData(triggerEl) {
             fd = collected.fd;
             scopeFieldNames = collected.fieldNames;
         }
+    }
+
+    const submitter = triggerEl.__champsAjaxSubmitter || null;
+    if (submitter?.name) {
+        const submitterValue = submitter.value ?? '';
+        fd = rebuildFormDataWithout(fd, submitter.name);
+        fd.append(submitter.name, submitterValue);
     }
 
     const triggerName = triggerEl.getAttribute('name');
