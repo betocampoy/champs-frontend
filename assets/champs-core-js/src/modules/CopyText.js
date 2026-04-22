@@ -7,8 +7,10 @@
  *  3) data-champs-copy                   -> copia do próprio trigger
  *
  * Opcional:
+ *  - data-champs-copy-to="#seletor"      -> grava o valor copiado em um target
  *  - data-champs-check="#checkbox"       -> marca checkbox após copiar
  *  - data-champs-copied-text="..."       -> texto do feedback (default: Copiado!)
+ *  - data-champs-copy-feedback="true|false" -> ativa/desativa feedback visual (default: true)
  *
  * Evento:
  *  - champs:copied (bubbles)
@@ -82,7 +84,58 @@ function markCheckbox(triggerEl, root) {
     }
 }
 
-function applyFeedback(triggerEl, targetEl = null) {
+function writeToTarget(triggerEl, root, text) {
+    const selector = triggerEl.getAttribute('data-champs-copy-to');
+    if (!selector) return null;
+
+    const targetEl = root.querySelector(selector);
+    if (!targetEl) return null;
+
+    const tagName = (targetEl.tagName || '').toLowerCase();
+
+    if (
+        tagName === 'input' ||
+        tagName === 'textarea' ||
+        tagName === 'select'
+    ) {
+        targetEl.value = text;
+    } else {
+        targetEl.textContent = text;
+    }
+
+    targetEl.dispatchEvent(new Event('input', { bubbles: true }));
+    targetEl.dispatchEvent(new Event('change', { bubbles: true }));
+
+    return targetEl;
+}
+
+function parseBool(value, defaultValue = false) {
+    if (value === null || value === undefined || value === '') {
+        return defaultValue;
+    }
+
+    if (typeof value === 'boolean') {
+        return value;
+    }
+
+    const normalized = String(value).trim().toLowerCase();
+
+    if (['1', 'true', 'yes', 'on'].includes(normalized)) {
+        return true;
+    }
+
+    if (['0', 'false', 'no', 'off'].includes(normalized)) {
+        return false;
+    }
+
+    return defaultValue;
+}
+
+function shouldApplyFeedback(triggerEl) {
+    return parseBool(triggerEl.getAttribute('data-champs-copy-feedback'), true);
+}
+
+function applyFeedback(triggerEl, sourceEl = null, destinationEl = null) {
     const text = triggerEl.getAttribute('data-champs-copied-text') || 'Copiado!';
 
     // Sempre marca o trigger
@@ -90,17 +143,26 @@ function applyFeedback(triggerEl, targetEl = null) {
     triggerEl.setAttribute('data-champs-copied-text', text);
     triggerEl.setAttribute('data-champs-copied', '1');
 
-    // Opcionalmente marca também o alvo
-    if (targetEl && targetEl !== triggerEl) {
-        targetEl.classList.add('champs-copied');
+    // Opcionalmente marca também a origem
+    if (sourceEl && sourceEl !== triggerEl) {
+        sourceEl.classList.add('champs-copied');
+    }
+
+    // Opcionalmente marca também o destino
+    if (destinationEl && destinationEl !== triggerEl && destinationEl !== sourceEl) {
+        destinationEl.classList.add('champs-copied');
     }
 
     setTimeout(() => {
         triggerEl.classList.remove('champs-copied');
         triggerEl.removeAttribute('data-champs-copied');
 
-        if (targetEl && targetEl !== triggerEl) {
-            targetEl.classList.remove('champs-copied');
+        if (sourceEl && sourceEl !== triggerEl) {
+            sourceEl.classList.remove('champs-copied');
+        }
+
+        if (destinationEl && destinationEl !== triggerEl && destinationEl !== sourceEl) {
+            destinationEl.classList.remove('champs-copied');
         }
     }, 1500);
 }
@@ -110,7 +172,7 @@ export async function handleCopyText(triggerEl, scope = document) {
 
     let text = '';
     let source = '';
-    let targetEl = null;
+    let sourceEl = null;
 
     const direct = triggerEl.getAttribute('data-champs-copy-text');
 
@@ -121,14 +183,14 @@ export async function handleCopyText(triggerEl, scope = document) {
         const targetSelector = triggerEl.getAttribute('data-champs-copy-from');
 
         if (targetSelector) {
-            targetEl = root.querySelector(targetSelector);
+            sourceEl = root.querySelector(targetSelector);
 
-            if (!targetEl) {
+            if (!sourceEl) {
                 dispatchCopied(triggerEl, { source: 'from', ok: false });
                 return;
             }
 
-            text = htmlToPlainText(targetEl);
+            text = htmlToPlainText(sourceEl);
             source = 'from';
         } else if (triggerEl.hasAttribute('data-champs-copy')) {
             text = htmlToPlainText(triggerEl);
@@ -140,10 +202,21 @@ export async function handleCopyText(triggerEl, scope = document) {
 
     try {
         await writeToClipboard(text);
-        markCheckbox(triggerEl, root);
-        applyFeedback(triggerEl, targetEl);
 
-        dispatchCopied(triggerEl, { source, text, ok: true });
+        const destinationEl = writeToTarget(triggerEl, root, text);
+
+        markCheckbox(triggerEl, root);
+
+        if (shouldApplyFeedback(triggerEl)) {
+            applyFeedback(triggerEl, sourceEl, destinationEl);
+        }
+
+        dispatchCopied(triggerEl, {
+            source,
+            text,
+            ok: true,
+            destination: destinationEl ? 'target' : null,
+        });
     } catch (err) {
         console.error('[Champs] Erro ao copiar:', err);
         dispatchCopied(triggerEl, { source, text, ok: false });

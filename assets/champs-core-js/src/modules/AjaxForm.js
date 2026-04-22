@@ -52,10 +52,23 @@ import { initActionRules, runUiActions, runActionRules, runNamedActionRules } fr
 //    - reinit do core após dom-patch
 //
 // ✅ NOVO: submit declarativo no form
-//    - form[data-champs-ajax-submit="true"]
+//    - data-champs-ajax-submit="true"
 //    - intercepta submit natural do form
 //    - compatível com Enter, botão submit e requestSubmit()
-//    - reaproveita o pipeline normal do AjaxForm
+//    - sempre envia os inputs do próprio form
+//    - permite configurar route/method/loader no próprio form
+//
+// ✅ NOVO: proteção contra submit/loader duplicado
+//    - listener de submit registrado em capturing phase
+//    - preventDefault + stopPropagation + stopImmediatePropagation
+//    - flags de estado:
+//      - data-champs-ajax-intercepted
+//      - data-champs-ajax-submitting
+//
+// ✅ NOVO: loader contextual vindo do form
+//    - em submit declarativo, o form vira a fonte de configuração visual/contextual
+//    - respeita data-champs-loader e data-champs-loader-target definidos no form
+//    - envia X-Global-Loader: 0 quando houver loader local configurado
 
 import Message from './Message.js';
 import { applyValidationError } from './ValidationError.js';
@@ -129,15 +142,32 @@ export function initAjaxForm(scope = document) {
         await handleAjax(trigger);
     });
 
+    // Capturing phase para interceptar o submit o mais cedo possível
     document.addEventListener('submit', async (event) => {
         const form = event.target;
 
         if (!(form instanceof HTMLFormElement)) return;
         if (form.dataset.champsAjaxSubmit !== 'true') return;
 
+        form.dataset.champsAjaxIntercepted = 'true';
+
+        if (form.dataset.champsAjaxSubmitting === 'true') {
+            event.preventDefault();
+            event.stopPropagation();
+            if (typeof event.stopImmediatePropagation === 'function') {
+                event.stopImmediatePropagation();
+            }
+            return;
+        }
+
         event.preventDefault();
+        event.stopPropagation();
+        if (typeof event.stopImmediatePropagation === 'function') {
+            event.stopImmediatePropagation();
+        }
+
         await handleAjaxFormSubmit(form, event.submitter || null);
-    });
+    }, true);
 
     initActionRules(scope);
 
@@ -156,22 +186,24 @@ export function initAjaxForm(scope = document) {
 export async function handleAjax(triggerEl) {
     if (!triggerEl) return;
 
-    const wantsPreopen = triggerEl.hasAttribute('data-champs-open-new-page')
-        || triggerEl.hasAttribute('data-champs-ajax-open-new-page');
+    const configSource = getAjaxConfigSource(triggerEl);
+
+    const wantsPreopen = configSource.hasAttribute('data-champs-open-new-page')
+        || configSource.hasAttribute('data-champs-ajax-open-new-page');
 
     if (wantsPreopen) {
         const count = Math.max(
             1,
             parseInt(
-                triggerEl.getAttribute('data-champs-open-new-page-count')
-                || triggerEl.getAttribute('data-champs-ajax-open-new-page-count')
+                configSource.getAttribute('data-champs-open-new-page-count')
+                || configSource.getAttribute('data-champs-ajax-open-new-page-count')
                 || '1',
                 10
             )
         );
 
-        const target = triggerEl.getAttribute('data-champs-open-new-page-target')
-            || triggerEl.getAttribute('data-champs-ajax-open-new-page-target')
+        const target = configSource.getAttribute('data-champs-open-new-page-target')
+            || configSource.getAttribute('data-champs-ajax-open-new-page-target')
             || '_blank';
 
         const pages = [];
@@ -189,12 +221,12 @@ export async function handleAjax(triggerEl) {
         _preopenedPages.set(triggerEl, pages);
     }
 
-    const disableButton = parseBool(triggerEl.getAttribute('data-champs-ajax-disable-button'), true);
-    const reenableButton = parseBool(triggerEl.getAttribute('data-champs-ajax-reenable-button'), true);
+    const disableButton = parseBool(configSource.getAttribute('data-champs-ajax-disable-button'), true);
+    const reenableButton = parseBool(configSource.getAttribute('data-champs-ajax-reenable-button'), true);
 
     if (isDisabled(triggerEl) && triggerEl.dataset.champsAjaxDisabledByRequest !== 'true') return;
 
-    const confirmText = triggerEl.getAttribute('data-champs-ajax-confirm');
+    const confirmText = configSource.getAttribute('data-champs-ajax-confirm');
     if (confirmText) {
         const ok = await ModalManager.confirm(
             {
@@ -250,8 +282,13 @@ export async function handleAjax(triggerEl) {
             body: fd,
             headers: (() => {
                 const h = { 'X-Champs-Ajax': '1' };
-                const hasLocalLoader = !!triggerEl?.dataset?.champsLoaderTarget || triggerEl?.hasAttribute?.('data-champs-loader');
-                if (!hasLocalLoader) h['X-Global-Loader'] = '1';
+
+                const hasLocalLoader =
+                    !!configSource?.dataset?.champsLoaderTarget ||
+                    configSource?.hasAttribute?.('data-champs-loader');
+
+                h['X-Global-Loader'] = hasLocalLoader ? '0' : '1';
+
                 return h;
             })(),
         });
@@ -306,8 +343,15 @@ export async function handleAjax(triggerEl) {
 export async function handleAjaxFormSubmit(form, submitter = null) {
     if (!form) return;
 
-    const triggerEl = createFormSubmitTrigger(form, submitter);
-    await handleAjax(triggerEl);
+    form.dataset.champsAjaxSubmitting = 'true';
+
+    try {
+        const triggerEl = createFormSubmitTrigger(form, submitter);
+        await handleAjax(triggerEl);
+    } finally {
+        delete form.dataset.champsAjaxSubmitting;
+        delete form.dataset.champsAjaxIntercepted;
+    }
 }
 
 function createFormSubmitTrigger(form, submitter = null) {
@@ -334,8 +378,10 @@ function createFormSubmitTrigger(form, submitter = null) {
     copyDataAttrIfExists(form, trigger, 'data-champs-ajax-priorize-data-attr');
     copyDataAttrIfExists(form, trigger, 'data-champs-ajax-include-champs-filter');
     copyDataAttrIfExists(form, trigger, 'data-champs-modal-close-on-action');
+
     copyDataAttrIfExists(form, trigger, 'data-champs-loader');
     copyDataAttrIfExists(form, trigger, 'data-champs-loader-target');
+
     copyDataAttrIfExists(form, trigger, 'data-champs-open-new-page');
     copyDataAttrIfExists(form, trigger, 'data-champs-open-new-page-count');
     copyDataAttrIfExists(form, trigger, 'data-champs-open-new-page-target');
@@ -368,13 +414,18 @@ function copyDataAttrIfExists(source, target, attrName) {
     target.setAttribute(attrName, source.getAttribute(attrName));
 }
 
+function getAjaxConfigSource(triggerEl) {
+    return triggerEl?.__champsAjaxFormRef || triggerEl;
+}
+
 /* ============================= */
 /*  PIPELINE                     */
 /* ============================= */
 
 async function executeActions(actions, triggerEl) {
-    const disableButton = parseBool(triggerEl.getAttribute('data-champs-ajax-disable-button'), true);
-    const reenableButton = parseBool(triggerEl.getAttribute('data-champs-ajax-reenable-button'), true);
+    const configSource = getAjaxConfigSource(triggerEl);
+    const disableButton = parseBool(configSource.getAttribute('data-champs-ajax-disable-button'), true);
+    const reenableButton = parseBool(configSource.getAttribute('data-champs-ajax-reenable-button'), true);
 
     for (const action of actions) {
         const stopNow = await executeAction(action, triggerEl, {
@@ -420,7 +471,7 @@ async function executeAction(action, triggerEl, ctx) {
                         ...messageOptions,
                         rawHtml: true,
                         target: action.target || null,
-                        scopeEl: triggerEl,
+                        scopeEl: getAjaxConfigSource(triggerEl),
                         broadcast: action.broadcast === true,
                     }
                 );
@@ -431,7 +482,7 @@ async function executeAction(action, triggerEl, ctx) {
                     {
                         ...messageOptions,
                         target: action.target || null,
-                        scopeEl: triggerEl,
+                        scopeEl: getAjaxConfigSource(triggerEl),
                         broadcast: action.broadcast === true,
                     }
                 );
@@ -449,12 +500,12 @@ async function executeAction(action, triggerEl, ctx) {
                         persist: action.persist === true,
                         seconds: action.seconds,
                         target: action.target || null,
-                        scopeEl: triggerEl,
+                        scopeEl: getAjaxConfigSource(triggerEl),
                         broadcast: action.broadcast === true,
                     }
                 );
             }
-            applyValidationError(action, triggerEl);
+            applyValidationError(action, getAjaxConfigSource(triggerEl));
             return true;
         }
 
@@ -807,7 +858,8 @@ function collectScopeFormData(scope) {
 }
 
 function resolveChampsFilterSource(triggerEl) {
-    const attr = triggerEl.getAttribute('data-champs-ajax-include-champs-filter');
+    const configSource = getAjaxConfigSource(triggerEl);
+    const attr = configSource.getAttribute('data-champs-ajax-include-champs-filter');
 
     if (attr === null) {
         return null;
@@ -863,11 +915,18 @@ function mergeChampsFilterIntoFormData(fd, filterFd) {
 }
 
 function buildFormData(triggerEl) {
-    const route = triggerEl.getAttribute('data-champs-ajax-route') || '';
-    const method = (triggerEl.getAttribute('data-champs-ajax-method') || 'POST').toUpperCase();
+    const configSource = getAjaxConfigSource(triggerEl);
 
-    const withInputs = parseBool(triggerEl.getAttribute('data-champs-ajax-with-inputs'), false);
-    const priorize = new Set(parseCsvList(triggerEl.getAttribute('data-champs-ajax-priorize-data-attr')));
+    const route = configSource.getAttribute('data-champs-ajax-route') || '';
+    const method = (configSource.getAttribute('data-champs-ajax-method') || 'POST').toUpperCase();
+
+    const isFormSubmit = !!triggerEl.__champsAjaxFormRef;
+
+    const withInputs = isFormSubmit
+        ? true
+        : parseBool(configSource.getAttribute('data-champs-ajax-with-inputs'), false);
+
+    const priorize = new Set(parseCsvList(configSource.getAttribute('data-champs-ajax-priorize-data-attr')));
 
     let fd = new FormData();
     let scopeFieldNames = new Set();
@@ -896,15 +955,13 @@ function buildFormData(triggerEl) {
         const triggerValue = triggerEl.value ?? '';
         if (!withInputs) {
             fd.append(triggerName, triggerValue);
-        } else {
-            if (!scopeFieldNames.has(triggerName) || priorize.has(triggerName)) {
-                fd = rebuildFormDataWithout(fd, triggerName);
-                fd.append(triggerName, triggerValue);
-            }
+        } else if (!scopeFieldNames.has(triggerName) || priorize.has(triggerName)) {
+            fd = rebuildFormDataWithout(fd, triggerName);
+            fd.append(triggerName, triggerValue);
         }
     }
 
-    for (const [k, v] of Object.entries(triggerEl.dataset)) {
+    for (const [k, v] of Object.entries(configSource.dataset || {})) {
         if (!k.startsWith('champsAjaxField')) continue;
         const field = k.replace('champsAjaxField', '');
         if (!field) continue;
@@ -958,7 +1015,7 @@ function resolveActionExecutionScope(triggerEl, action = {}) {
 function buildActionRulesOptions(triggerEl, action = {}) {
     return {
         scope: resolveActionExecutionScope(triggerEl, action),
-        element: triggerEl,
+        element: getAjaxConfigSource(triggerEl),
         extra: action.context || {},
     };
 }
@@ -976,14 +1033,17 @@ function afterDomMutation(scope = document) {
 /* ============================= */
 
 function shouldCloseParentModalOnAction(triggerEl) {
+    const configSource = getAjaxConfigSource(triggerEl);
+
     return parseBool(
-        triggerEl?.getAttribute?.('data-champs-modal-close-on-action'),
+        configSource?.getAttribute?.('data-champs-modal-close-on-action'),
         false
     );
 }
 
 function getClosestModal(triggerEl) {
-    return triggerEl?.closest?.('.modal, .champs-modal') || null;
+    const configSource = getAjaxConfigSource(triggerEl);
+    return configSource?.closest?.('.modal, .champs-modal') || null;
 }
 
 function closeParentModalIfNeeded(triggerEl) {

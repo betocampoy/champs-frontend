@@ -11,6 +11,13 @@
  *   data-champs-action-trigger="change"
  *   data-champs-action="documentoRules"
  *
+ * Também suporta:
+ *   data-champs-action-trigger="load"
+ *   data-champs-action="freightLockOnLoad"
+ *
+ *   data-champs-actions='[{"when": {...}, "actions": [...]}]'
+ *   data-champs-ui-actions='[{"operation":"disable","target":"..."}]'
+ *
  * Página:
  *   window.ChampsPageActions = window.ChampsPageActions || {};
  *   window.ChampsPageActions.documentoRules = function (context) {
@@ -19,6 +26,7 @@
  */
 
 const boundScopes = new WeakSet();
+const initializedLoadElements = new WeakSet();
 const SUPPORTED_EVENTS = ['change', 'input', 'click', 'blur'];
 
 function getPageRegistry() {
@@ -351,6 +359,76 @@ function resolveRulesEntry(entry, context) {
     return entry;
 }
 
+function parseJsonAttribute(raw, attrName) {
+    if (!raw) {
+        return null;
+    }
+
+    try {
+        return JSON.parse(raw);
+    } catch (error) {
+        console.warn(`[Champs ActionRules] JSON inválido em ${attrName}:`, error);
+        return null;
+    }
+}
+
+function resolveElementPayload(element, context) {
+    const inlineUiActionsRaw = element.getAttribute('data-champs-ui-actions');
+    const inlineRulesRaw = element.getAttribute('data-champs-actions');
+    const actionName = (element.dataset.champsAction || '').trim();
+
+    if (inlineUiActionsRaw) {
+        return {
+            mode: 'ui-actions',
+            payload: parseJsonAttribute(inlineUiActionsRaw, 'data-champs-ui-actions') || [],
+        };
+    }
+
+    if (inlineRulesRaw) {
+        return {
+            mode: 'rules',
+            payload: parseJsonAttribute(inlineRulesRaw, 'data-champs-actions') || [],
+        };
+    }
+
+    if (actionName) {
+        const registry = getPageRegistry();
+        const entry = registry[actionName];
+
+        if (!entry) {
+            console.warn(`[Champs ActionRules] ação "${actionName}" não encontrada em window.ChampsPageActions.`);
+            return null;
+        }
+
+        return {
+            mode: 'rules',
+            payload: resolveRulesEntry(entry, context),
+        };
+    }
+
+    return null;
+}
+
+function runElementPayload(element, scope, event = null) {
+    if (!element) {
+        return;
+    }
+
+    const context = buildContext(element, event, scope);
+    const resolved = resolveElementPayload(element, context);
+
+    if (!resolved) {
+        return;
+    }
+
+    if (resolved.mode === 'ui-actions') {
+        executeActions(resolved.payload, context);
+        return;
+    }
+
+    runRuleSet(resolved.payload, context);
+}
+
 function handleTriggeredEvent(event) {
     const scope = event.currentTarget || document;
     const target = event.target;
@@ -359,31 +437,19 @@ function handleTriggeredEvent(event) {
         return;
     }
 
-    const element = target.closest('[data-champs-action-trigger][data-champs-action]');
+    const element = target.closest('[data-champs-action-trigger]');
 
     if (!element || !scope.contains(element)) {
         return;
     }
 
     const triggerName = (element.dataset.champsActionTrigger || '').trim();
-    const actionName = (element.dataset.champsAction || '').trim();
 
-    if (!triggerName || !actionName || event.type !== triggerName) {
+    if (!triggerName || event.type !== triggerName) {
         return;
     }
 
-    const registry = getPageRegistry();
-    const entry = registry[actionName];
-
-    if (!entry) {
-        console.warn(`[Champs ActionRules] ação "${actionName}" não encontrada em window.ChampsPageActions.`);
-        return;
-    }
-
-    const context = buildContext(element, event, scope);
-    const rules = resolveRulesEntry(entry, context);
-
-    runRuleSet(rules, context);
+    runElementPayload(element, scope, event);
 }
 
 function bindSupportedEvents(scope) {
@@ -396,6 +462,19 @@ function bindSupportedEvents(scope) {
     });
 
     boundScopes.add(scope);
+}
+
+function runLoadActions(scope) {
+    const elements = scope.querySelectorAll('[data-champs-action-trigger="load"]');
+
+    elements.forEach((element) => {
+        if (initializedLoadElements.has(element)) {
+            return;
+        }
+
+        initializedLoadElements.add(element);
+        runElementPayload(element, scope, null);
+    });
 }
 
 export function runActionRules(rules, options = {}) {
@@ -448,6 +527,7 @@ export function initActionRules(scope = document) {
     const finalScope = safeScope(scope);
 
     bindSupportedEvents(finalScope);
+    runLoadActions(finalScope);
 
     window.Champs = window.Champs || {};
     window.Champs.runActionRules = runActionRules;
