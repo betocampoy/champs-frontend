@@ -54,13 +54,19 @@ final class LegacyExtension extends AbstractExtension
     public function asset(string $path): string
     {
         $path = ltrim($path, '/');
-        $base = rtrim($this->basePath, '/');
 
-        if ($this->assetsBase !== '') {
-            $assetsBase = '/' . trim($this->assetsBase, '/');
-            return ($base !== '' ? $base : '') . $assetsBase . '/' . $path;
+        $parts = [];
+
+        if ($this->basePath !== '') {
+            $parts[] = trim($this->basePath, '/');
         }
 
-        return ($base !== '' ? $base : '') . '/' . $path;
+        if ($this->assetsBase !== '') {
+            $parts[] = trim($this->assetsBase, '/');
+        }
+
+        $parts[] = $path;
+
+        return implode('/', $parts);
     }
 }
