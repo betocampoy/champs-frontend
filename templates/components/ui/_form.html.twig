@@ -1272,28 +1272,42 @@
     {% set sections = cfg.sections|default(cfg.tabs|default([])) %}
     {% set navClasses = cfg.navClasses|default('mb-3') %}
     {% set contentClasses = cfg.contentClasses|default('') %}
+    {% set persistence = cfg.persistence|default(false) %}
+    {% set persistenceMode = cfg.persistenceMode|default('hash') %}
+    {% set persistenceKey = cfg.persistenceKey|default(id) %}
+    {% set persistenceDefault = cfg.persistenceDefault|default(cfg.default|default(null)) %}
+    {% set attrs = cfg.attrs|default({}) %}
 
-    {{ ui.navTabs(cfg|merge({ id: id, tabs: sections, classes: cfg.classes|default(navClasses) })) }}
+    {% if persistence %}
+        {% set attrs = attrs|merge({
+            'data-champs-form-sections': true,
+            'data-champs-form-sections-type': 'tabs',
+            'data-champs-form-sections-key': persistenceKey,
+            'data-champs-form-sections-mode': persistenceMode,
+            'data-champs-form-sections-default': persistenceDefault
+        }) %}
+    {% endif %}
+
+    {{ ui.navTabs(cfg|merge({ id: id, tabs: sections, classes: cfg.classes|default(navClasses), attrs: attrs })) }}
 
 <div class="tab-content {{ contentClasses }}" id="{{ id }}-content">
-    {% endmacro %}
+{% endmacro %}
+{% macro tabSectionStart(cfg) %}
+    {% import _self as ui %}
+    {{ ui.tabPaneStart({
+        navId: cfg.id|default(cfg.navId|default('form-sections')),
+        key: cfg.key|default('section'),
+        active: cfg.active|default(false),
+        classes: cfg.classes|default('')
+    }) }}
+{% endmacro %}
 
-    {% macro tabSectionStart(cfg) %}
-        {% import _self as ui %}
-        {{ ui.tabPaneStart({
-            navId: cfg.id|default(cfg.navId|default('form-sections')),
-            key: cfg.key|default('section'),
-            active: cfg.active|default(false),
-            classes: cfg.classes|default('')
-        }) }}
-    {% endmacro %}
+{% macro tabSectionEnd() %}
+    {% import _self as ui %}
+    {{ ui.tabPaneEnd() }}
+{% endmacro %}
 
-    {% macro tabSectionEnd() %}
-        {% import _self as ui %}
-        {{ ui.tabPaneEnd() }}
-    {% endmacro %}
-
-    {% macro tabsEnd() %}
+{% macro tabsEnd() %}
 </div>
 {% endmacro %}
 
@@ -1302,12 +1316,25 @@
 
     {% set id = cfg.id|default('form-sections') %}
     {% set classes = cfg.classes|default('') %}
+    {% set persistence = cfg.persistence|default(false) %}
+    {% set persistenceMode = cfg.persistenceMode|default('hash') %}
+    {% set persistenceKey = cfg.persistenceKey|default(id) %}
+    {% set persistenceDefault = cfg.persistenceDefault|default(cfg.default|default(null)) %}
     {% set attrs = cfg.attrs|default({}) %}
 
-<div class="accordion {{ classes }}" id="{{ id }}" {{ ui.attrs(attrs) }}>
-    {% endmacro %}
+    {% if persistence %}
+        {% set attrs = attrs|merge({
+            'data-champs-form-sections': true,
+            'data-champs-form-sections-type': 'accordion',
+            'data-champs-form-sections-key': persistenceKey,
+            'data-champs-form-sections-mode': persistenceMode,
+            'data-champs-form-sections-default': persistenceDefault
+        }) %}
+    {% endif %}
 
-    {% macro accordionSectionStart(cfg) %}
+<div class="accordion {{ classes }}" id="{{ id }}" {{ ui.attrs(attrs) }}>
+{% endmacro %}
+{% macro accordionSectionStart(cfg) %}
     {% import _self as ui %}
 
     {% set parentId = cfg.id|default('form-sections') %}
@@ -1345,15 +1372,15 @@
                 data-bs-parent="#{{ parentId }}"
         >
             <div class="accordion-body {{ bodyClasses }}">
-                {% endmacro %}
+{% endmacro %}
 
-                {% macro accordionSectionEnd() %}
+{% macro accordionSectionEnd() %}
             </div>
         </div>
     </div>
-    {% endmacro %}
+{% endmacro %}
 
-    {% macro accordionEnd() %}
+{% macro accordionEnd() %}
 </div>
 {% endmacro %}
 
@@ -1364,9 +1391,9 @@
     {% set attrs = cfg.attrs|default({}) %}
 
 <div class="{{ classes }}" {{ ui.attrs(attrs) }}>
-    {% endmacro %}
+{% endmacro %}
 
-    {% macro cardSectionStart(cfg) %}
+{% macro cardSectionStart(cfg) %}
     {% import _self as ui %}
 
     {% set cardClasses = cfg.cardClasses|default('shadow-sm') %}
@@ -1382,14 +1409,14 @@
             {% endif %}
         </div>
         <div class="card-body {{ bodyClasses }}">
-            {% endmacro %}
+{% endmacro %}
 
-            {% macro cardSectionEnd() %}
+{% macro cardSectionEnd() %}
         </div>
     </div>
-    {% endmacro %}
+{% endmacro %}
 
-    {% macro cardsEnd() %}
+{% macro cardsEnd() %}
 </div>
 {% endmacro %}
 
