@@ -1,793 +1,370 @@
 /**
- * Champs Core - ModalManager (V3.6.0 - focus management + restore stack)
+ * FormPopulation (Champs Core)
  *
- * ✅ Suporta múltiplos modais (stack) sem conflitar backdrop
- * ✅ NÃO depende de Bootstrap (fallback sempre funciona)
- * ✅ Se vier HTML Bootstrap (.modal) mas NÃO houver BS5 (bootstrap.Modal), converte para modal Champs gerado
- * ✅ Gera IDs únicos automaticamente quando action.id não é informado
- * ✅ Botões dinâmicos:
- *    - actions (pipeline via ctx.executeActions)
- *    - attrs (data-*) aplicados no botão (gatilhos champs)
- *    - data-champs-modal-close-on-action="true" (fecha ANTES da action)
- * ✅ confirm(opts) -> Promise<boolean> (por padrão size="sm")
- * ✅ action.type="modal":
- *    - html parcial => injeta no modal gerado
- *    - html completo + full=true => usa o modal completo enviado pelo backend
- *      quando houver Bootstrap 5 disponível
- * ✅ Botão gatilho do AjaxForm:
- *    - disable por padrão durante a requisição
- *    - reenable por padrão após o retorno
+ * Responsável por popular elementos do frontend com base no retorno do backend.
  *
- * ✅ NOVO:
- *    - foco automático ao abrir modal
- *    - confirm() foca no botão Confirmar
- *    - modais comuns focam no primeiro input visível; se não houver, primeiro botão
- *    - histórico de foco com stack
- *    - restauração inteligente do foco ao fechar
+ * Suporta:
+ * - select
+ * - input / textarea
+ * - elementos de texto/html
+ * - reset explícito de dependentes
+ * - reset em cascata por grupo/nível
+ *
+ * ------------------------------------------------------------------
+ * Formato recomendado:
+ *
+ * action = {
+ *   type: "populate",
+ *   target: "#cliente",
+ *   kind: "select" | "value" | "text" | "html",
+ *   data: ...,
+ *   reset: ["#empresa", "#contato"],
+ *   options: {
+ *     placeholder: "Selecione uma opção",
+ *     emptyText: "Nenhum registro encontrado",
+ *     clearBefore: true,
+ *     enableWhenHasData: true,
+ *     preserveValue: false
+ *   }
+ * }
+ *
+ * ------------------------------------------------------------------
+ * Exemplos:
+ *
+ * {
+ *   target: "#cliente",
+ *   kind: "select",
+ *   data: [
+ *     { id: "1", label: "Cliente A" },
+ *     { id: "2", label: "Cliente B", is_selected: true }
+ *   ]
+ * }
+ *
+ * {
+ *   target: "#documento",
+ *   kind: "value",
+ *   data: "12345678900"
+ * }
+ *
+ * {
+ *   target: "#status",
+ *   kind: "text",
+ *   data: "Ativo"
+ * }
  */
 
-const modalStack = []; // [{ modalEl, backdropEl, action, ctx, escHandler, bsModal }]
-const focusHistoryStack = []; // [HTMLElement]
-
-export function openModal(action = {}, ctx = {}) {
-    if (action?.html) return openHtmlModal(action, ctx);
-    return openGeneratedModal(action, ctx);
+function toArray(value) {
+    if (Array.isArray(value)) return value;
+    if (value === null || value === undefined) return [];
+    return [value];
 }
 
-export function confirm(opts = {}, ctx = {}) {
-    return new Promise((resolve) => {
-        const action = {
-            type: 'modal',
-            id: uniqueId('champs-confirm'),
-            title: opts.title || 'Confirmação',
-            body: opts.body || '<p>Deseja continuar?</p>',
-            size: opts.size || 'sm',
-            closeOnBackdrop: opts.closeOnBackdrop ?? true,
-            closeOnEsc: opts.closeOnEsc ?? true,
-            destroyOnClose: true,
-            confirmMode: true,
-            buttons: [
-                {
-                    text: opts.cancelText || 'Cancelar',
-                    role: 'cancel',
-                    class: opts.cancelClass || 'champs-btn-secondary',
-                    closeOnAction: true,
-                },
-                {
-                    text: opts.confirmText || 'Confirmar',
-                    role: 'confirm',
-                    class: opts.confirmClass || 'champs-btn-primary',
-                    closeOnAction: true,
-                },
-            ],
-        };
+function resolveElement(target, scope = document) {
+    if (!target) return null;
+    if (target instanceof Element) return target;
 
-        openModal(action, { ...ctx, _resolveConfirm: resolve });
-    });
-}
+    const root = scope?.querySelector ? scope : document;
 
-/* ============================= */
-/*  HTML COMPLETO DO BACKEND     */
-/* ============================= */
-
-function openHtmlModal(action, ctx) {
-    const rawHtml = String(action.html || '').trim();
-    if (!rawHtml) return;
-
-    const wrapper = document.createElement('div');
-    wrapper.innerHTML = rawHtml;
-
-    const first = wrapper.firstElementChild;
-    const Bootstrap = getBootstrap();
-    const wantsFullHtml = action?.full === true || String(action?.mode || '').toLowerCase() === 'full';
-
-    if (wantsFullHtml && first && first.classList?.contains('modal') && Bootstrap?.Modal) {
-        document.body.appendChild(first);
-        showModal(first, action, ctx);
-        return;
-    }
-
-    if (first && first.classList?.contains('modal') && Bootstrap?.Modal) {
-        document.body.appendChild(first);
-        showModal(first, action, ctx);
-        return;
-    }
-
-    const convertedAction = {
-        ...action,
-        html: null,
-        id: action.id || uniqueId('champs-modal'),
-        title: action.title || '',
-        body: action.body || rawHtml,
-        buttons: Array.isArray(action.buttons) ? action.buttons : null,
-    };
-
-    openGeneratedModal(convertedAction, ctx);
-}
-
-/* ============================= */
-/*  MODAL GERADO PELO JS         */
-/* ============================= */
-
-function openGeneratedModal(action, ctx) {
-    const id = action.id || uniqueId('champs-modal');
-
-    const modalEl = document.createElement('div');
-    modalEl.id = id;
-    modalEl.className = 'champs-modal';
-    modalEl.setAttribute('role', 'dialog');
-    modalEl.setAttribute('aria-modal', 'true');
-
-    const sizeClass = action.size ? `champs-modal-${String(action.size).toLowerCase()}` : '';
-    const buttonsHtml = buildButtonsHtml(action.buttons);
-
-    modalEl.innerHTML = `
-    <div class="champs-modal-dialog ${sizeClass}">
-      <div class="champs-modal-content">
-        <div class="champs-modal-header">
-          <h5 class="champs-modal-title">${action.title || ''}</h5>
-          <button type="button" class="champs-modal-x" data-champs-modal-close aria-label="Fechar">&times;</button>
-        </div>
-
-        <div class="champs-modal-body">
-          ${action.body || ''}
-        </div>
-
-        <div class="champs-modal-footer">
-          ${buttonsHtml}
-        </div>
-      </div>
-    </div>
-  `;
-
-    document.body.appendChild(modalEl);
-    showModal(modalEl, action, ctx);
-}
-
-/* ============================= */
-/*  BOTÕES                       */
-/* ============================= */
-
-function buildButtonsHtml(buttons) {
-    const list = Array.isArray(buttons) ? buttons : null;
-
-    if (!list || list.length === 0) {
-        return `
-      <button type="button"
-              class="champs-btn champs-btn-secondary"
-              data-champs-modal-close
-              data-role="close">
-        Fechar
-      </button>
-    `;
-    }
-
-    return list
-        .map((b, i) => {
-            const text = b?.text ?? `Botão ${i + 1}`;
-            const role = (b?.role ?? 'action').toLowerCase();
-            const cls = b?.class ? `champs-btn ${b.class}` : 'champs-btn champs-btn-secondary';
-
-            const actionsJson = b?.actions ? encodeURIComponent(JSON.stringify(b.actions)) : '';
-            const actionsAttr = actionsJson ? ` data-actions="${actionsJson}"` : '';
-
-            const dataAttrs = buildDataAttrs(b?.attrs);
-
-            const closeOnAction = b?.closeOnAction === true;
-            const closeOnActionAttr = closeOnAction ? ` data-champs-modal-close-on-action="true"` : '';
-
-            return `
-        <button
-          type="button"
-          class="${cls}"
-          data-champs-modal-btn
-          data-role="${role}"
-          ${actionsAttr}
-          ${closeOnActionAttr}
-          ${dataAttrs}
-        >${text}</button>
-      `;
-        })
-        .join('');
-}
-
-function buildDataAttrs(attrs) {
-    if (!attrs || typeof attrs !== 'object') return '';
-
-    return Object.entries(attrs)
-        .map(([k, v]) => {
-            const key = String(k).trim();
-            if (!key.startsWith('data-')) return '';
-
-            let val = v;
-            if (val === true) val = 'true';
-            if (val === false) val = 'false';
-            if (val === null || val === undefined) val = '';
-
-            return `${key}="${escapeAttr(String(val))}"`;
-        })
-        .filter(Boolean)
-        .join(' ');
-}
-
-function escapeAttr(s) {
-    return String(s)
-        .replaceAll('&', '&amp;')
-        .replaceAll('"', '&quot;')
-        .replaceAll('<', '&lt;')
-        .replaceAll('>', '&gt;');
-}
-
-/* ============================= */
-/*  SHOW                         */
-/* ============================= */
-
-function showModal(modalEl, action, ctx) {
-    const Bootstrap = getBootstrap();
-
-    if (Bootstrap?.Modal && modalEl.classList.contains('modal')) {
-        activateBootstrapModal(modalEl, action, ctx, Bootstrap);
-        return;
-    }
-
-    activateFallback(modalEl, action, ctx);
-}
-
-/* ============================= */
-/*  BOOTSTRAP MODAL              */
-/* ============================= */
-
-function activateBootstrapModal(modalEl, action, ctx, Bootstrap) {
-    const existing = Bootstrap.Modal.getOrCreateInstance(modalEl, {
-        backdrop: action.closeOnBackdrop === false ? 'static' : true,
-        keyboard: action.closeOnEsc !== false,
-    });
-
-    wireModalButtons(modalEl, action, ctx, 'bootstrap');
-
-    const previouslyFocusedEl =
-        document.activeElement instanceof HTMLElement ? document.activeElement : null;
-
-    pushFocusHistory(previouslyFocusedEl);
-
-    if (previouslyFocusedEl) {
-        try {
-            previouslyFocusedEl.blur();
-        } catch {}
-    }
-
-    const stackEntry = {
-        modalEl,
-        backdropEl: null,
-        action,
-        ctx,
-        escHandler: null,
-        bsModal: existing,
-    };
-
-    modalStack.push(stackEntry);
-
-    const onShown = () => {
-        focusModalEntry(modalEl, action);
-        modalEl.removeEventListener('shown.bs.modal', onShown);
-    };
-
-    modalEl.addEventListener('shown.bs.modal', onShown);
-    existing.show();
-}
-
-function closeTopBootstrap(reason = 'close') {
-    return new Promise((resolve) => {
-        const top = modalStack[modalStack.length - 1];
-        if (!top || !top.bsModal) {
-            resolve();
-            return;
+    if (typeof target === 'string') {
+        if (target.startsWith('#') || target.startsWith('.') || target.startsWith('[')) {
+            return root.querySelector(target) || document.querySelector(target);
         }
 
-        const { modalEl, action, ctx, bsModal } = top;
-
-        const onHidden = () => {
-            const idx = modalStack.findIndex((item) => item.modalEl === modalEl);
-            if (idx >= 0) {
-                modalStack.splice(idx, 1);
-            }
-
-            modalEl.removeEventListener('hidden.bs.modal', onHidden);
-
-            if (action.destroyOnClose !== false) {
-                modalEl.remove();
-            }
-
-            if (typeof ctx._resolveConfirm === 'function') {
-                if (reason === 'confirm') {
-                    ctx._resolveConfirm(true);
-                } else {
-                    ctx._resolveConfirm(false);
-                }
-                ctx._resolveConfirm = null;
-            }
-
-            restoreBestAvailableFocus();
-            resolve();
-        };
-
-        modalEl.addEventListener('hidden.bs.modal', onHidden, { once: true });
-        bsModal.hide();
-    });
-}
-
-function wireModalButtons(modalEl, action, ctx, mode = 'fallback') {
-    modalEl.querySelectorAll('[data-champs-modal-close]').forEach((btn) => {
-        btn.addEventListener('click', () => {
-            if (!isTopModal(modalEl)) return;
-
-            if (mode === 'bootstrap') {
-                closeTopBootstrap('close');
-            } else {
-                closeTopFallback('close');
-            }
-        });
-    });
-
-    modalEl.querySelectorAll('[data-champs-modal-btn]').forEach((btn) => {
-        btn.addEventListener('click', () => handleModalButtonClick(btn, action, ctx, mode));
-    });
-}
-
-function isTopModal(modalEl) {
-    const top = modalStack[modalStack.length - 1];
-    return !!top && top.modalEl === modalEl;
-}
-
-/* ============================= */
-/*  FALLBACK CSS (auto)          */
-/* ============================= */
-
-function ensureModalFallbackStyles() {
-    if (document.getElementById('champs-modal-fallback-style')) return;
-
-    const style = document.createElement('style');
-    style.id = 'champs-modal-fallback-style';
-    style.textContent = `
-      .champs-modal-open{ overflow: hidden; }
-
-      .champs-modal-backdrop{
-        position: fixed; inset: 0;
-        background: rgba(0,0,0,.45);
-        opacity: 0;
-        transition: opacity .15s ease;
-      }
-      .champs-modal-backdrop.show{ opacity: 1; }
-
-      .champs-modal{
-        position: fixed; inset: 0;
-        display: grid;
-        place-items: center;
-        opacity: 0;
-        transition: opacity .15s ease;
-        pointer-events: none;
-        padding: 18px;
-        box-sizing: border-box;
-      }
-      .champs-modal.show{
-        opacity: 1;
-        pointer-events: auto;
-      }
-
-      .champs-modal-dialog{
-        width: clamp(360px, 92vw, 560px);
-      }
-
-      .champs-modal-content{
-        background: #fff;
-        border-radius: 16px;
-        border: 1px solid rgba(0,0,0,.08);
-        box-shadow: 0 18px 40px rgba(0,0,0,.18);
-        overflow: hidden;
-      }
-      .champs-modal-header,
-      .champs-modal-body,
-      .champs-modal-footer{
-        padding: 14px 16px;
-      }
-      .champs-modal-header{
-        display:flex;
-        align-items:center;
-        justify-content:space-between;
-        border-bottom: 1px solid rgba(0,0,0,.08);
-        gap: 12px;
-      }
-      .champs-modal-title{
-        margin: 0;
-        font-size: 16px;
-        font-weight: 600;
-      }
-      .champs-modal-footer{
-        display:flex;
-        gap: 10px;
-        justify-content:flex-end;
-        border-top: 1px solid rgba(0,0,0,.08);
-        flex-wrap: wrap;
-      }
-      .champs-modal-x{
-        border: 0;
-        background: transparent;
-        font-size: 18px;
-        cursor: pointer;
-        line-height: 1;
-        padding: 6px 10px;
-        border-radius: 10px;
-      }
-      .champs-modal-x:hover{
-        background: rgba(0,0,0,.06);
-      }
-
-      .champs-btn{
-        padding: 8px 12px;
-        border-radius: 10px;
-        border: 1px solid rgba(0,0,0,.12);
-        background: #f7f7f7;
-        cursor: pointer;
-      }
-      .champs-btn-primary{
-        background: #0d6efd;
-        color: #fff;
-        border-color: #0d6efd;
-      }
-      .champs-btn-secondary{
-        background: #f7f7f7;
-        color: #222;
-      }
-
-      .champs-modal-sm .champs-modal-dialog{ width: clamp(320px, 92vw, 420px); }
-      .champs-modal-lg .champs-modal-dialog{ width: clamp(520px, 92vw, 920px); }
-      .champs-modal-xl .champs-modal-dialog{ width: clamp(520px, 94vw, 1140px); }
-    `;
-    document.head.appendChild(style);
-}
-
-/* ============================= */
-/*  FALLBACK STACK               */
-/* ============================= */
-
-function activateFallback(modalEl, action, ctx) {
-    ensureModalFallbackStyles();
-
-    const previouslyFocusedEl =
-        document.activeElement instanceof HTMLElement ? document.activeElement : null;
-
-    pushFocusHistory(previouslyFocusedEl);
-
-    if (previouslyFocusedEl) {
-        try {
-            previouslyFocusedEl.blur();
-        } catch {}
+        return root.getElementById?.(target) || document.getElementById(target);
     }
 
-    const imp = (el, prop, value) => el.style.setProperty(prop, value, 'important');
-
-    modalEl.classList.add('champs-modal');
-
-    imp(modalEl, 'position', 'fixed');
-    imp(modalEl, 'top', '0');
-    imp(modalEl, 'right', '0');
-    imp(modalEl, 'bottom', '0');
-    imp(modalEl, 'left', '0');
-    imp(modalEl, 'inset', '0');
-
-    imp(modalEl, 'width', '100%');
-    imp(modalEl, 'height', '100%');
-    imp(modalEl, 'min-height', '100vh');
-
-    imp(modalEl, 'display', 'grid');
-    imp(modalEl, 'place-items', 'center');
-    imp(modalEl, 'align-items', 'center');
-    imp(modalEl, 'justify-items', 'center');
-
-    imp(modalEl, 'margin', '0');
-    imp(modalEl, 'padding', '18px');
-    imp(modalEl, 'box-sizing', 'border-box');
-    imp(modalEl, 'pointer-events', 'none');
-
-    const dialogEl = modalEl.querySelector('.champs-modal-dialog');
-    if (dialogEl) {
-        imp(dialogEl, 'position', 'relative');
-        imp(dialogEl, 'top', 'auto');
-        imp(dialogEl, 'left', 'auto');
-        imp(dialogEl, 'right', 'auto');
-        imp(dialogEl, 'bottom', 'auto');
-        imp(dialogEl, 'transform', 'none');
-        imp(dialogEl, 'justify-self', 'center');
-        imp(dialogEl, 'align-self', 'center');
-        imp(dialogEl, 'margin', '0');
-
-        const size = String(action?.size || '').toLowerCase();
-        if (size === 'sm') imp(dialogEl, 'width', 'clamp(320px, 92vw, 420px)');
-        if (size === 'lg') imp(dialogEl, 'width', 'clamp(520px, 92vw, 920px)');
-        if (size === 'xl') imp(dialogEl, 'width', 'clamp(520px, 94vw, 1140px)');
-    }
-
-    const closeOnBackdrop = action.closeOnBackdrop !== false;
-    const closeOnEsc = action.closeOnEsc !== false;
-
-    const level = modalStack.length;
-
-    const backdropEl = document.createElement('div');
-    backdropEl.className = 'champs-modal-backdrop';
-    backdropEl.style.zIndex = String(1040 + level * 20);
-
-    modalEl.style.zIndex = String(1050 + level * 20);
-
-    document.body.appendChild(backdropEl);
-    document.body.classList.add('champs-modal-open');
-
-    requestAnimationFrame(() => {
-        modalEl.classList.add('show');
-        backdropEl.classList.add('show');
-        imp(modalEl, 'pointer-events', 'auto');
-
-        requestAnimationFrame(() => {
-            focusModalEntry(modalEl, action);
-        });
-    });
-
-    const escHandler = (e) => {
-        if (e.key !== 'Escape') return;
-        const top = modalStack[modalStack.length - 1];
-        if (!top) return;
-        if (top.modalEl !== modalEl) return;
-        if (!closeOnEsc) return;
-
-        closeTopFallback('cancel');
-    };
-
-    document.addEventListener('keydown', escHandler);
-
-    if (closeOnBackdrop) {
-        backdropEl.addEventListener('click', () => {
-            const top = modalStack[modalStack.length - 1];
-            if (!top) return;
-            if (top.modalEl !== modalEl) return;
-
-            closeTopFallback('cancel');
-        });
-    }
-
-    wireModalButtons(modalEl, action, ctx, 'fallback');
-
-    modalStack.push({ modalEl, backdropEl, action, ctx, escHandler, bsModal: null });
-}
-
-async function handleModalButtonClick(btn, action, ctx, mode = 'fallback') {
-    const role = (btn.getAttribute('data-role') || 'action').toLowerCase();
-
-    const shouldCloseOnAction =
-        (btn.getAttribute('data-champs-modal-close-on-action') || '').toLowerCase() === 'true';
-
-    if (role === 'confirm') {
-        if (mode === 'bootstrap') {
-            await closeTopBootstrap('confirm');
-        } else {
-            if (typeof ctx._resolveConfirm === 'function') ctx._resolveConfirm(true);
-            await closeTopFallback('confirm');
-        }
-        return;
-    }
-
-    if (role === 'cancel') {
-        if (mode === 'bootstrap') {
-            await closeTopBootstrap('cancel');
-        } else {
-            if (typeof ctx._resolveConfirm === 'function') ctx._resolveConfirm(false);
-            await closeTopFallback('cancel');
-        }
-        return;
-    }
-
-    if (role === 'close') {
-        if (mode === 'bootstrap') {
-            await closeTopBootstrap('close');
-        } else {
-            await closeTopFallback('close');
-        }
-        return;
-    }
-
-    const encoded = btn.getAttribute('data-actions') || '';
-
-    if (shouldCloseOnAction) {
-        if (mode === 'bootstrap') {
-            await closeTopBootstrap('action');
-        } else {
-            await closeTopFallback('action');
-        }
-    }
-
-    if (encoded && typeof ctx.executeActions === 'function') {
-        try {
-            const actionsList = JSON.parse(decodeURIComponent(encoded));
-            if (Array.isArray(actionsList) && actionsList.length) {
-                await ctx.executeActions(actionsList);
-            }
-        } catch (e) {
-            console.warn('[ModalManager] actions inválidas no botão', e);
-        }
-    }
-}
-
-function closeTopFallback(reason = 'close') {
-    return new Promise((resolve) => {
-        const top = modalStack.pop();
-        if (!top) {
-            resolve();
-            return;
-        }
-
-        const { modalEl, backdropEl, action, ctx, escHandler } = top;
-
-        modalEl.style.pointerEvents = 'none';
-        modalEl.style.opacity = '0';
-        backdropEl.style.opacity = '0';
-
-        modalEl.classList.remove('show');
-        backdropEl.classList.remove('show');
-
-        document.removeEventListener('keydown', escHandler);
-
-        setTimeout(() => {
-            backdropEl.remove();
-
-            if (action.destroyOnClose !== false) {
-                modalEl.remove();
-            }
-
-            if (modalStack.length === 0) {
-                document.body.classList.remove('champs-modal-open');
-            }
-
-            if (typeof ctx._resolveConfirm === 'function' && reason !== 'confirm') {
-                ctx._resolveConfirm(false);
-                ctx._resolveConfirm = null;
-            }
-
-            restoreBestAvailableFocus();
-            resolve();
-        }, 200);
-    });
-}
-
-/* ============================= */
-/*  BOOTSTRAP DETECTION          */
-/* ============================= */
-
-function getBootstrap() {
-    if (globalThis.bootstrap?.Modal) return globalThis.bootstrap;
-    if (globalThis.Bootstrap?.Modal) return globalThis.Bootstrap;
     return null;
 }
 
-/* ============================= */
-/*  FOCUS                        */
-/* ============================= */
-
-function canReceiveFocus(el) {
-    if (!el || !(el instanceof HTMLElement)) return false;
-    if (!document.contains(el)) return false;
-    if (el.hidden) return false;
-    if (el.hasAttribute('disabled')) return false;
-    if (el.getAttribute('aria-hidden') === 'true') return false;
-    if (el.getAttribute('aria-disabled') === 'true') return false;
-
-    const style = getComputedStyle(el);
-    if (style.display === 'none' || style.visibility === 'hidden') return false;
-    if (el.offsetParent === null && style.position !== 'fixed') return false;
-
-    return true;
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
 }
 
-function pushFocusHistory(el) {
-    if (!canReceiveFocus(el)) return;
+function normalizeSelectItems(data) {
+    if (!data) return [];
 
-    const last = focusHistoryStack[focusHistoryStack.length - 1];
-    if (last === el) return;
+    if (Array.isArray(data)) {
+        return data.map((item) => {
+            // objeto estruturado
+            if (item && typeof item === 'object' && !Array.isArray(item)) {
+                const label =
+                    item.label ??
+                    item.text ??
+                    item.name ??
+                    item.descricao ??
+                    '';
 
-    focusHistoryStack.push(el);
-}
+                if (label === '') {
+                    console.warn('[FormPopulation] Item sem label:', item);
+                }
 
-function restoreFocusFromHistory() {
-    while (focusHistoryStack.length > 0) {
-        const candidate = focusHistoryStack.pop();
-        if (!canReceiveFocus(candidate)) continue;
+                return {
+                    id: item.id ?? item.value ?? '',
+                    label: String(label),
+                    is_selected: Boolean(item.selected ?? item.is_selected),
+                    disabled: Boolean(item.disabled),
+                    dataset: item.dataset ?? {},
+                };
+            }
 
-        try {
-            candidate.focus();
-            return true;
-        } catch {}
+            // valor simples
+            return {
+                id: item,
+                label: String(item ?? ''),
+                is_selected: false,
+                disabled: false,
+                dataset: {},
+            };
+        });
     }
 
-    return false;
-}
+    // formato { id: label }
+    if (typeof data === 'object') {
+        return Object.entries(data).map(([key, value]) => {
+            if (value && typeof value === 'object' && !Array.isArray(value)) {
+                const label =
+                    value.label ??
+                    value.text ??
+                    value.name ??
+                    value.descricao ??
+                    '';
 
-function getFocusableElements(container) {
-    if (!container) return [];
+                if (label === '') {
+                    console.warn('[FormPopulation] Item sem label:', value);
+                }
 
-    const selector = [
-        'input:not([type="hidden"]):not([disabled])',
-        'select:not([disabled])',
-        'textarea:not([disabled])',
-        'button:not([disabled])',
-        'a[href]',
-        '[tabindex]:not([tabindex="-1"])',
-    ].join(',');
+                return {
+                    id: value.id ?? value.value ?? key,
+                    label: String(label),
+                    is_selected: Boolean(value.selected ?? value.is_selected),
+                    disabled: Boolean(value.disabled),
+                    dataset: value.dataset ?? {},
+                };
+            }
 
-    return Array.from(container.querySelectorAll(selector)).filter(canReceiveFocus);
-}
-
-function focusModalEntry(modalEl, action = {}) {
-    if (!modalEl) return;
-
-    const preferConfirm = action?.confirmMode === true || action?.preferConfirmFocus === true;
-
-    const focusables = getFocusableElements(modalEl);
-
-    if (preferConfirm) {
-        const confirmBtn =
-            modalEl.querySelector('[data-role="confirm"]') ||
-            modalEl.querySelector('[data-champs-confirm-ok]') ||
-            modalEl.querySelector('.champs-btn-primary');
-
-        if (canReceiveFocus(confirmBtn)) {
-            confirmBtn.focus();
-            return;
-        }
+            return {
+                id: key,
+                label: String(value ?? ''),
+                is_selected: false,
+                disabled: false,
+                dataset: {},
+            };
+        });
     }
 
-    const firstField = focusables.find((el) =>
-        ['INPUT', 'SELECT', 'TEXTAREA'].includes(el.tagName)
+    return [];
+}
+
+function resetElement(el, config = {}) {
+    if (!el) return;
+
+    const tag = el.tagName;
+    const emptyText = config.emptyText ?? 'Selecione o campo anterior';
+    const disable = config.disable ?? true;
+
+    if (tag === 'SELECT') {
+        el.innerHTML = `<option value="" selected>${escapeHtml(emptyText)}</option>`;
+        el.disabled = disable;
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+        return;
+    }
+
+    if (tag === 'INPUT' || tag === 'TEXTAREA') {
+        el.value = '';
+        if (disable) el.disabled = true;
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+        return;
+    }
+
+    el.textContent = '';
+}
+
+function resetTargets(targets, scope = document, config = {}) {
+    toArray(targets).forEach((target) => {
+        const el = resolveElement(target, scope);
+        resetElement(el, config);
+    });
+}
+
+function resetCascadeFromElement(sourceEl, scope = document) {
+    if (!sourceEl?.dataset) return;
+
+    const group = sourceEl.dataset.champsPopulateGroup;
+    const level = parseInt(sourceEl.dataset.champsPopulateLevel || '0', 10);
+
+    if (!group || !level) return;
+
+    const root = scope?.querySelector ? scope : document;
+    const siblings = root.querySelectorAll(
+        `[data-champs-populate-group="${group}"]`
     );
 
-    if (firstField) {
-        firstField.focus();
+    siblings.forEach((el) => {
+        const elLevel = parseInt(el.dataset.champsPopulateLevel || '0', 10);
+        if (elLevel > level) {
+            resetElement(el);
+        }
+    });
+}
+
+function updateSelect(selectEl, data, options = {}) {
+    const items = normalizeSelectItems(data);
+    const placeholder = options.placeholder ?? 'Selecione uma opção';
+    const emptyText = options.emptyText ?? 'Nenhum registro encontrado';
+    const clearBefore = options.clearBefore !== false;
+    const enableWhenHasData = options.enableWhenHasData !== false;
+    const preserveValue = options.preserveValue === true;
+
+    const previousValue = preserveValue ? String(selectEl.value ?? '') : null;
+
+    if (clearBefore) {
+        selectEl.innerHTML = '';
+    }
+
+    if (!items.length) {
+        selectEl.innerHTML = `<option value="" selected>${escapeHtml(emptyText)}</option>`;
+        selectEl.disabled = true;
+        selectEl.dispatchEvent(new Event('change', { bubbles: true }));
         return;
     }
 
-    if (focusables.length > 0) {
-        focusables[0].focus();
+    const hasExplicitSelected = items.some((item) => item.is_selected);
+    const hasPreservedValue =
+        preserveValue &&
+        previousValue !== null &&
+        items.some((item) => String(item.id) === previousValue);
+
+    const fragments = [];
+
+    if (placeholder !== null) {
+        const shouldSelectPlaceholder = !hasExplicitSelected && !hasPreservedValue;
+
+        fragments.push(
+            `<option value=""${shouldSelectPlaceholder ? ' selected' : ''}>${escapeHtml(placeholder)}</option>`
+        );
+    }
+
+    items.forEach((item) => {
+        const selected =
+            item.is_selected ||
+            (preserveValue &&
+                previousValue !== null &&
+                String(item.id) === previousValue);
+
+        const datasetAttrs = Object.entries(item.dataset || {})
+            .map(([key, value]) => ` data-${key}="${escapeHtml(value)}"`)
+            .join('');
+
+        fragments.push(
+            `<option value="${escapeHtml(item.id)}"${selected ? ' selected' : ''}${item.disabled ? ' disabled' : ''}${datasetAttrs}>${escapeHtml(item.label ?? '')}</option>`
+        );
+    });
+
+    selectEl.innerHTML = fragments.join('');
+    selectEl.disabled = enableWhenHasData ? false : selectEl.disabled;
+
+    selectEl.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
+function updateValueField(fieldEl, data) {
+    const value =
+        typeof data === 'object' && data !== null && 'value' in data
+            ? data.value
+            : data ?? '';
+
+    if ('value' in fieldEl) {
+        fieldEl.value = value;
+        fieldEl.dispatchEvent(new Event('input', { bubbles: true }));
+        fieldEl.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+}
+
+function updateText(el, data) {
+    el.textContent =
+        typeof data === 'object' && data !== null && 'text' in data
+            ? data.text
+            : String(data ?? '');
+}
+
+function updateHtml(el, data) {
+    el.innerHTML =
+        typeof data === 'object' && data !== null && 'html' in data
+            ? data.html
+            : String(data ?? '');
+}
+
+function inferKind(el, explicitKind) {
+    if (explicitKind) return explicitKind;
+
+    const tag = el.tagName;
+    if (tag === 'SELECT') return 'select';
+    if (tag === 'INPUT' || tag === 'TEXTAREA') return 'value';
+
+    return 'text';
+}
+
+export function populateForm(action, scope = document) {
+    if (!action) return;
+
+    const root = scope?.querySelector ? scope : document;
+
+    const target = action.target ?? action.selector ?? action.element;
+    const targetEl = resolveElement(target, root);
+
+    if (!targetEl) {
+        console.warn('[FormPopulation] Target não encontrado.', { target });
         return;
     }
 
-    if (!modalEl.hasAttribute('tabindex')) {
-        modalEl.setAttribute('tabindex', '-1');
+    const kind = inferKind(targetEl, action.kind);
+    const data = action.data;
+    const options = action.options ?? {};
+
+    if (action.reset) {
+        resetTargets(action.reset, root, action.resetOptions ?? {});
     }
 
-    try {
-        modalEl.focus();
-    } catch {}
-}
-
-function restoreBestAvailableFocus() {
-    const nextTop = modalStack[modalStack.length - 1];
-
-    if (nextTop?.modalEl) {
-        requestAnimationFrame(() => {
-            focusModalEntry(nextTop.modalEl, nextTop.action);
-        });
-        return;
+    if (action.resetCascade === true) {
+        resetCascadeFromElement(targetEl, root);
     }
 
-    restoreFocusFromHistory();
+    switch (kind) {
+        case 'select':
+            updateSelect(targetEl, data, options);
+            break;
+
+        case 'value':
+            updateValueField(targetEl, data);
+            break;
+
+        case 'html':
+            updateHtml(targetEl, data);
+            break;
+
+        case 'text':
+        default:
+            updateText(targetEl, data);
+            break;
+    }
 }
 
-/* ============================= */
-/*  UTIL                         */
-/* ============================= */
-
-function uniqueId(prefix = 'champs') {
-    const rand =
-        (globalThis.crypto?.randomUUID && globalThis.crypto.randomUUID()) ||
-        `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-
-    return `${prefix}-${rand}`;
+export function populateMany(actions, scope = document) {
+    toArray(actions).forEach((action) => {
+        populateForm(action, scope);
+    });
 }
 
-export default { openModal, confirm };
+export default {
+    populate: populateForm,
+    populateMany,
+};
+
+export function initFormPopulation(scope = document) {
+    return;
+}

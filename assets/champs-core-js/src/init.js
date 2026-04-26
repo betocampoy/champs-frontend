@@ -15,6 +15,7 @@ import { initPreferenceManager } from './modules/PreferenceManager.js';
 import { initValidate } from './modules/Validate.js';
 import { initRemoteSelect } from './modules/RemoteSelect.js';
 import { initTabsPersistence } from './modules/TabsPersistence.js';
+import { initFormSectionsPersistence } from './modules/FormSectionsPersistence.js';
 import { initFormSubmitControl } from './modules/FormSubmitControl.js';
 import { initCalc } from "./modules/Calc.js";
 
@@ -38,5 +39,6 @@ export function initCore(scope = document) {
     initCalc(scope);
 
     initTabsPersistence(scope);
+    initFormSectionsPersistence(scope);
     initAutoOpen(scope); // por último, porque pode disparar cliques
 }
