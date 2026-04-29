@@ -830,6 +830,59 @@
   - prefixed (default) => usa remoteSelectGroup()
   - inline             => label acima
   - floating           => floating label
+
+  Configurações principais:
+  - url: endpoint remoto usado pelo TomSelect
+  - placeholder: texto exibido no campo
+  - minChars: quantidade mínima de caracteres para pesquisar
+  - perPage: quantidade de registros por página
+  - allowClear: habilita botão para limpar seleção
+  - selectedId: valor inicial selecionado
+  - selectedLabel: label inicial selecionado
+
+  Campos dependentes:
+  - dependsOn: map de parâmetros que serão enviados junto na request.
+    A chave vira o nome do parâmetro enviado ao backend.
+    O valor deve ser um seletor CSS do campo no formulário.
+
+    Exemplo:
+    dependsOn: {
+      unidade_id: '[name="unidade_id"]',
+      cliente_id: '[name="cliente_id"]'
+    }
+
+    Resultado esperado na request:
+    remote_users.php?q=joao&page=1&per_page=20&unidade_id=5&cliente_id=10
+
+  Limpeza de campos filhos:
+  - clearOnChange: map/list de seletores que serão limpos quando este
+    remote select mudar. Útil para limpar cliente/usuário quando a unidade muda.
+
+    Exemplo map:
+    clearOnChange: {
+      cliente_id: '[name="cliente_id"]',
+      usuario_id: '[name="usuario_id"]'
+    }
+
+    Exemplo list:
+    clearOnChange: [
+      '[name="cliente_id"]',
+      '[name="usuario_id"]'
+    ]
+
+  Reação ao mudar dependências:
+  - dependsOnChanged: comportamento quando algum campo informado em dependsOn muda.
+
+    Opções suportadas no JS:
+    - clear  => limpa seleção/opções e aguarda o usuário pesquisar novamente (default)
+    - refresh => limpa seleção/opções e recarrega automaticamente com q vazio
+
+    Exemplo:
+    dependsOnChanged: 'refresh'
+
+  Observação:
+  Esta macro apenas gera os atributos data-champs-*.
+  O comportamento depende do módulo JS RemoteSelect ler esses atributos.
 ============================================================ #}
 {% macro remoteSelect(cfg) %}
     {% import _self as ui %}
@@ -875,6 +928,9 @@
     {% set minChars = cfg.minChars is defined ? cfg.minChars : null %}
     {% set perPage = cfg.perPage is defined ? cfg.perPage : null %}
     {% set allowClear = cfg.allowClear is defined ? cfg.allowClear : null %}
+    {% set dependsOn = cfg.dependsOn|default({}) %}
+    {% set clearOnChange = cfg.clearOnChange|default({}) %}
+    {% set dependsOnChanged = cfg.dependsOnChanged|default(null) %}
 
     {% set selectedId = cfg.selectedId is defined ? cfg.selectedId : null %}
     {% set selectedLabel = cfg.selectedLabel is defined ? cfg.selectedLabel : null %}
@@ -895,6 +951,9 @@
                     {% if minChars is not null %}data-champs-remote-select-min-chars="{{ minChars }}"{% endif %}
                     {% if perPage is not null %}data-champs-remote-select-per-page="{{ perPage }}"{% endif %}
                     {% if allowClear is not null %}data-champs-remote-select-allow-clear="{{ allowClear ? 'true' : 'false' }}"{% endif %}
+                    {% if dependsOn|length > 0 %}data-champs-remote-select-depends-on="{{ dependsOn|json_encode|e('html_attr') }}"{% endif %}
+                    {% if clearOnChange|length > 0 %}data-champs-remote-select-clear-on-change="{{ clearOnChange|json_encode|e('html_attr') }}"{% endif %}
+                    {% if dependsOnChanged %}data-champs-remote-select-depends-on-changed="{{ dependsOnChanged }}"{% endif %}
                     {{ required ? 'required' : '' }}
                     {{ disabled ? 'disabled' : '' }}
                     {{ ui.attrs(attrs) }}
@@ -951,6 +1010,9 @@
     {% set minChars = cfg.minChars is defined ? cfg.minChars : null %}
     {% set perPage = cfg.perPage is defined ? cfg.perPage : null %}
     {% set allowClear = cfg.allowClear is defined ? cfg.allowClear : null %}
+    {% set dependsOn = cfg.dependsOn|default({}) %}
+    {% set clearOnChange = cfg.clearOnChange|default({}) %}
+    {% set dependsOnChanged = cfg.dependsOnChanged|default(null) %}
 
     {% set selectedId = cfg.selectedId is defined ? cfg.selectedId : null %}
     {% set selectedLabel = cfg.selectedLabel is defined ? cfg.selectedLabel : null %}
@@ -974,6 +1036,9 @@
                     {% if minChars is not null %}data-champs-remote-select-min-chars="{{ minChars }}"{% endif %}
                     {% if perPage is not null %}data-champs-remote-select-per-page="{{ perPage }}"{% endif %}
                     {% if allowClear is not null %}data-champs-remote-select-allow-clear="{{ allowClear ? 'true' : 'false' }}"{% endif %}
+                    {% if dependsOn|length > 0 %}data-champs-remote-select-depends-on="{{ dependsOn|json_encode|e('html_attr') }}"{% endif %}
+                    {% if clearOnChange|length > 0 %}data-champs-remote-select-clear-on-change="{{ clearOnChange|json_encode|e('html_attr') }}"{% endif %}
+                    {% if dependsOnChanged %}data-champs-remote-select-depends-on-changed="{{ dependsOnChanged }}"{% endif %}
                     {{ required ? 'required' : '' }}
                     {{ disabled ? 'disabled' : '' }}
                     {{ ui.attrs(attrs) }}
@@ -1033,6 +1098,9 @@
     {% set minChars = cfg.minChars is defined ? cfg.minChars : null %}
     {% set perPage = cfg.perPage is defined ? cfg.perPage : null %}
     {% set allowClear = cfg.allowClear is defined ? cfg.allowClear : null %}
+    {% set dependsOn = cfg.dependsOn|default({}) %}
+    {% set clearOnChange = cfg.clearOnChange|default({}) %}
+    {% set dependsOnChanged = cfg.dependsOnChanged|default(null) %}
 
     {% set selectedId = cfg.selectedId is defined ? cfg.selectedId : null %}
     {% set selectedLabel = cfg.selectedLabel is defined ? cfg.selectedLabel : null %}
@@ -1053,6 +1121,9 @@
                         {% if minChars is not null %}data-champs-remote-select-min-chars="{{ minChars }}"{% endif %}
                         {% if perPage is not null %}data-champs-remote-select-per-page="{{ perPage }}"{% endif %}
                         {% if allowClear is not null %}data-champs-remote-select-allow-clear="{{ allowClear ? 'true' : 'false' }}"{% endif %}
+                        {% if dependsOn|length > 0 %}data-champs-remote-select-depends-on="{{ dependsOn|json_encode|e('html_attr') }}"{% endif %}
+                        {% if clearOnChange|length > 0 %}data-champs-remote-select-clear-on-change="{{ clearOnChange|json_encode|e('html_attr') }}"{% endif %}
+                        {% if dependsOnChanged %}data-champs-remote-select-depends-on-changed="{{ dependsOnChanged }}"{% endif %}
                         {{ required ? 'required' : '' }}
                         {{ disabled ? 'disabled' : '' }}
                         {{ ui.attrs(attrs) }}
@@ -1291,23 +1362,23 @@
     {{ ui.navTabs(cfg|merge({ id: id, tabs: sections, classes: cfg.classes|default(navClasses), attrs: attrs })) }}
 
 <div class="tab-content {{ contentClasses }}" id="{{ id }}-content">
-{% endmacro %}
-{% macro tabSectionStart(cfg) %}
-    {% import _self as ui %}
-    {{ ui.tabPaneStart({
-        navId: cfg.id|default(cfg.navId|default('form-sections')),
-        key: cfg.key|default('section'),
-        active: cfg.active|default(false),
-        classes: cfg.classes|default('')
-    }) }}
-{% endmacro %}
+    {% endmacro %}
+    {% macro tabSectionStart(cfg) %}
+        {% import _self as ui %}
+        {{ ui.tabPaneStart({
+            navId: cfg.id|default(cfg.navId|default('form-sections')),
+            key: cfg.key|default('section'),
+            active: cfg.active|default(false),
+            classes: cfg.classes|default('')
+        }) }}
+    {% endmacro %}
 
-{% macro tabSectionEnd() %}
-    {% import _self as ui %}
-    {{ ui.tabPaneEnd() }}
-{% endmacro %}
+    {% macro tabSectionEnd() %}
+        {% import _self as ui %}
+        {{ ui.tabPaneEnd() }}
+    {% endmacro %}
 
-{% macro tabsEnd() %}
+    {% macro tabsEnd() %}
 </div>
 {% endmacro %}
 
@@ -1333,8 +1404,8 @@
     {% endif %}
 
 <div class="accordion {{ classes }}" id="{{ id }}" {{ ui.attrs(attrs) }}>
-{% endmacro %}
-{% macro accordionSectionStart(cfg) %}
+    {% endmacro %}
+    {% macro accordionSectionStart(cfg) %}
     {% import _self as ui %}
 
     {% set parentId = cfg.id|default('form-sections') %}
@@ -1372,15 +1443,15 @@
                 data-bs-parent="#{{ parentId }}"
         >
             <div class="accordion-body {{ bodyClasses }}">
-{% endmacro %}
+                {% endmacro %}
 
-{% macro accordionSectionEnd() %}
+                {% macro accordionSectionEnd() %}
             </div>
         </div>
     </div>
-{% endmacro %}
+    {% endmacro %}
 
-{% macro accordionEnd() %}
+    {% macro accordionEnd() %}
 </div>
 {% endmacro %}
 
@@ -1391,9 +1462,9 @@
     {% set attrs = cfg.attrs|default({}) %}
 
 <div class="{{ classes }}" {{ ui.attrs(attrs) }}>
-{% endmacro %}
+    {% endmacro %}
 
-{% macro cardSectionStart(cfg) %}
+    {% macro cardSectionStart(cfg) %}
     {% import _self as ui %}
 
     {% set cardClasses = cfg.cardClasses|default('shadow-sm') %}
@@ -1409,14 +1480,14 @@
             {% endif %}
         </div>
         <div class="card-body {{ bodyClasses }}">
-{% endmacro %}
+            {% endmacro %}
 
-{% macro cardSectionEnd() %}
+            {% macro cardSectionEnd() %}
         </div>
     </div>
-{% endmacro %}
+    {% endmacro %}
 
-{% macro cardsEnd() %}
+    {% macro cardsEnd() %}
 </div>
 {% endmacro %}
 

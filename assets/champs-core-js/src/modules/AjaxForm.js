@@ -69,6 +69,13 @@ import { initActionRules, runUiActions, runActionRules, runNamedActionRules } fr
 //    - em submit declarativo, o form vira a fonte de configuração visual/contextual
 //    - respeita data-champs-loader e data-champs-loader-target definidos no form
 //    - envia X-Global-Loader: 0 quando houver loader local configurado
+//
+// ✅ NOVO: eventos públicos do ciclo AJAX, mantendo compatibilidade
+//    - champs:ajax:start    => antes do fetch
+//    - champs:ajax:success  => após JSON + actions executadas com sucesso
+//    - champs:ajax:error    => erro de rede/processamento ou JSON inválido
+//    - champs:ajax:end      => sempre ao finalizar
+//    - Payload em detail: triggerEl, response, actions, data, meta, success, route, method, context
 
 import Message from './Message.js';
 import { applyValidationError } from './ValidationError.js';
@@ -301,6 +308,16 @@ export async function handleAjax(triggerEl) {
             const text = await res.text();
             console.warn('[AjaxForm] Response não é JSON:', text);
             Message?.show?.('Resposta inválida do servidor.', 'error');
+
+            dispatchAjaxEvent('champs:ajax:error', triggerEl, {
+                response: null,
+                route,
+                method,
+                error: new Error('Resposta inválida do servidor.'),
+                rawResponse: text,
+                httpStatus: res.status,
+            });
+
             if (disableButton && reenableButton && triggerEl.dataset.champsAjaxDisabledByRequest === 'true') {
                 setDisabled(triggerEl, false);
                 delete triggerEl.dataset.champsAjaxDisabledByRequest;
@@ -311,9 +328,25 @@ export async function handleAjax(triggerEl) {
         const actions = normalizeActions(json);
         await executeActions(actions, triggerEl);
 
+        dispatchAjaxEvent('champs:ajax:success', triggerEl, {
+            response: json,
+            actions,
+            route,
+            method,
+            httpStatus: res.status,
+        });
+
     } catch (e) {
         console.error('[AjaxForm] Erro:', e);
         Message?.show?.('Erro ao processar a requisição.', 'error');
+
+        dispatchAjaxEvent('champs:ajax:error', triggerEl, {
+            response: null,
+            route: requestRoute,
+            method: requestMethod,
+            error: e,
+        });
+
         if (disableButton && reenableButton && triggerEl.dataset.champsAjaxDisabledByRequest === 'true') {
             setDisabled(triggerEl, false);
             delete triggerEl.dataset.champsAjaxDisabledByRequest;
@@ -623,6 +656,68 @@ async function executeAction(action, triggerEl, ctx) {
             console.warn('[AjaxForm] Action type não suportada:', type, action);
             return terminal(type);
     }
+}
+
+/* ============================= */
+/*  PUBLIC AJAX EVENTS           */
+/* ============================= */
+
+function dispatchAjaxEvent(eventName, triggerEl, payload = {}) {
+    const response = payload.response || null;
+    const actions = payload.actions || normalizeActions(response);
+    const data = normalizePlainObject(response?.data);
+    const meta = normalizePlainObject(response?.meta);
+    const context = buildAjaxEventContext(triggerEl, payload, data, meta);
+
+    document.dispatchEvent(new CustomEvent(eventName, {
+        bubbles: true,
+        detail: {
+            triggerEl,
+            trigger: triggerEl,
+            response,
+            actions,
+            data,
+            meta,
+            success: response ? response.success !== false : false,
+            route: payload.route || '',
+            method: payload.method || 'POST',
+            httpStatus: payload.httpStatus || null,
+            error: payload.error || null,
+            rawResponse: payload.rawResponse || null,
+            context,
+        },
+    }));
+}
+
+function normalizePlainObject(value) {
+    return value && typeof value === 'object' && !Array.isArray(value)
+        ? value
+        : {};
+}
+
+function buildAjaxEventContext(triggerEl, payload = {}, data = {}, meta = {}) {
+    const configSource = getAjaxConfigSource(triggerEl);
+
+    return {
+        module:
+            configSource?.dataset?.champsAjaxModule ||
+            data.module ||
+            meta.module ||
+            null,
+        action:
+            configSource?.dataset?.champsAjaxFieldAction ||
+            data.action ||
+            meta.action ||
+            null,
+        target:
+            configSource?.dataset?.champsLoaderTarget ||
+            null,
+        notificationId:
+            configSource?.dataset?.champsAjaxFieldNotificationId ||
+            data.notification_id ||
+            data.notificationId ||
+            null,
+    };
 }
 
 /* ============================= */

@@ -8,6 +8,8 @@ class AjaxFormRespose
 {
     private array $actions = [];
     private array $extra = [];
+    private array $data = [];
+    private array $meta = [];
 
     public static function make(): self
     {
@@ -43,6 +45,43 @@ class AjaxFormRespose
     public function extra(string $key, mixed $value): self
     {
         $this->extra[$key] = $value;
+        return $this;
+    }
+
+    /**
+     * Dados livres para consumo por módulos JS após a execução do AjaxForm.
+     *
+     * Exemplo de uso:
+     * $response->data([
+     *     'counter' => 2,
+     *     'notification_id' => 15,
+     * ]);
+     */
+    public function data(array $data): self
+    {
+        $this->data = array_replace_recursive($this->data, $data);
+        return $this;
+    }
+
+    public function dataItem(string $key, mixed $value): self
+    {
+        $this->data[$key] = $value;
+        return $this;
+    }
+
+    /**
+     * Metadados opcionais para integração entre módulos JS.
+     * Mantido separado de data para não misturar dados de negócio com contexto técnico.
+     */
+    public function meta(array $meta): self
+    {
+        $this->meta = array_replace_recursive($this->meta, $meta);
+        return $this;
+    }
+
+    public function metaItem(string $key, mixed $value): self
+    {
+        $this->meta[$key] = $value;
         return $this;
     }
 
@@ -716,9 +755,19 @@ class AjaxFormRespose
 
     public function toArray(): array
     {
-        return array_merge([
+        $payload = [
             'actions' => $this->actions,
-        ], $this->extra);
+        ];
+
+        if (!empty($this->data)) {
+            $payload['data'] = $this->data;
+        }
+
+        if (!empty($this->meta)) {
+            $payload['meta'] = $this->meta;
+        }
+
+        return array_merge($payload, $this->extra);
     }
 
     public function toJson(): string

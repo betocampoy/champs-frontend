@@ -1,0 +1,86 @@
+{% macro button(options = {}) %}
+    {% set id = options.id|default('champsNotificationCenter') %}
+    {% set title = options.title|default('Notificações') %}
+    {% set icon = options.icon|default('bi-bell') %}
+    {% set url = options.url|default('') %}
+    {% set counterUrl = options.counterUrl|default(url) %}
+    {% set readUrl = options.readUrl|default('') %}
+    {% set deleteUrl = options.deleteUrl|default('') %}
+    {% set refresh = options.refresh|default(60) %}
+
+    {% set openIfUnread = options.openIfUnread|default(false) %}
+    {% set openIfUnreadOnce = options.openIfUnreadOnce|default(true) %}
+    {% set readAction = options.readAction|default('notification-center-mark-read') %}
+    {% set deleteAction = options.deleteAction|default('notification-center-delete') %}
+
+    <button
+            type="button"
+            class="{{ options.buttonClass|default('btn btn-light position-relative') }}"
+            title="{{ title }}"
+            data-champs-notification-center
+            data-champs-notification-center-target="#{{ id }}"
+            data-champs-notification-center-url="{{ url }}"
+            data-champs-notification-center-counter-url="{{ counterUrl }}"
+            data-champs-notification-center-read-url="{{ readUrl }}"
+            data-champs-notification-center-delete-url="{{ deleteUrl }}"
+            data-champs-notification-center-refresh="{{ refresh }}"
+            data-champs-notification-center-open-if-unread="{{ openIfUnread ? 'true' : 'false' }}"
+            data-champs-notification-center-open-if-unread-once="{{ openIfUnreadOnce ? 'true' : 'false' }}"
+            data-champs-notification-center-read-action="{{ readAction }}"
+            data-champs-notification-center-delete-action="{{ deleteAction }}"
+    >
+        <i class="bi {{ icon }}"></i>
+
+        <span
+                class="{{ options.counterClass|default('position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none') }}"
+                style="{{ options.counterStyle|default('') }}"
+                data-champs-notification-center-counter
+        >0</span>
+    </button>
+{% endmacro %}
+
+
+{% macro sidebar(options = {}) %}
+    {% set id = options.id|default('champsNotificationCenter') %}
+    {% set title = options.title|default('Notificações') %}
+    {% set position = options.position|default('end') %}
+
+    <div
+            id="{{ id }}"
+            class="offcanvas offcanvas-{{ position }}"
+            tabindex="-1"
+            aria-labelledby="{{ id }}Label"
+    >
+        <div class="offcanvas-header border-bottom">
+            <h5 class="offcanvas-title" id="{{ id }}Label">
+                {{ title }}
+            </h5>
+
+            <button
+                    type="button"
+                    class="btn-close"
+                    data-bs-dismiss="offcanvas"
+                    data-champs-notification-center-close
+                    aria-label="Fechar"
+            ></button>
+        </div>
+
+        <div class="offcanvas-body p-0">
+
+            <div
+                    id="{{ id }}Message"
+                    class="px-3 pt-3"
+                    data-champs-notification-center-message
+            ></div>
+
+            <div
+                    class="list-group list-group-flush"
+                    data-champs-notification-center-list
+            >
+                <div class="p-3 text-muted small">
+                    Carregando notificações...
+                </div>
+            </div>
+        </div>
+    </div>
+{% endmacro %}

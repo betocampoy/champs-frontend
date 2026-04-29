@@ -18,6 +18,7 @@ import { initTabsPersistence } from './modules/TabsPersistence.js';
 import { initFormSectionsPersistence } from './modules/FormSectionsPersistence.js';
 import { initFormSubmitControl } from './modules/FormSubmitControl.js';
 import { initCalc } from "./modules/Calc.js";
+import { initNotificationCenter } from './modules/NotificationCenter.js';
 
 export function initCore(scope = document) {
     initLoader(scope);
@@ -37,6 +38,8 @@ export function initCore(scope = document) {
     initRemoteSelect(scope);
     initFormSubmitControl(scope);
     initCalc(scope);
+
+    initNotificationCenter(scope);
 
     initTabsPersistence(scope);
     initFormSectionsPersistence(scope);
