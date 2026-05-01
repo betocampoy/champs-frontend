@@ -118,6 +118,15 @@ class AjaxFormRespose
         ], $this->domPatchSelector($selector)));
     }
 
+    public function domPatchHtml(array $selector, string $html): self
+    {
+        return $this->addAction(array_merge([
+            'type' => 'dom-patch',
+            'operation' => 'html',
+            'html' => $html,
+        ], $this->domPatchSelector($selector)));
+    }
+
     public function domPatchAppend(array $selector, string $html): self
     {
         return $this->addAction(array_merge([

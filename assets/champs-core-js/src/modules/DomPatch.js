@@ -122,7 +122,7 @@ export default class DomPatch {
     }
 
     static requiresHtml(operation) {
-        return ['replace', 'append', 'prepend'].includes(operation);
+        return ['replace', 'hrml', 'append', 'prepend'].includes(operation);
     }
 
     static executeHtmlOperation(operation, targets, html, ctx = {}) {
@@ -133,6 +133,17 @@ export default class DomPatch {
                 targets.forEach((target) => {
                     const { fragment, insertedRoots } = this.createFragmentWithRoots(html);
                     target.replaceWith(fragment);
+                    this.initInsertedRoots(insertedRoots, ctx);
+                });
+
+                this.refreshCalcContainers(affectedCalcContainers);
+                return true;
+
+            case 'html':
+                targets.forEach((target) => {
+                    const { fragment, insertedRoots } = this.createFragmentWithRoots(html);
+                    target.innerHTML = '';
+                    target.appendChild(fragment);
                     this.initInsertedRoots(insertedRoots, ctx);
                 });
 
