@@ -59,22 +59,6 @@
 {% endmacro %}
 
 
-{# ============================================================
-  MACRO: ajaxButton(cfg)
-  Objetivo: botão com data-champs-ajax
-
-  Exemplo:
-  {{ ui.ajaxButton({
-      classes: 'btn btn-primary',
-      icon: 'bi-check2',
-      title: 'Salvar',
-      label: 'Salvar',
-      route: 'razoes_sociais-post.php',
-      withInputs: true,
-      fields: { action: 'update', empresa_id: empresa.id },
-      attrs: { 'data-champs-ajax-priorize-data-attr': 'action' }
-  }) }}
-============================================================ #}
 {% macro ajaxButton(cfg) %}
     {% import _self as ui %}
 
@@ -82,12 +66,19 @@
     {% set withInputs = cfg.withInputs|default(false) %}
     {% set fields = cfg.fields|default({}) %}
     {% set attrs = cfg.attrs|default({}) %}
+    {% set confirm = cfg.confirm|default(null) %}
 
     {% set ajaxAttrs = {
         'data-champs-ajax': true,
         'data-champs-ajax-route': route,
         'data-champs-ajax-with-inputs': withInputs ? 'true' : 'false'
     } %}
+
+    {% if confirm is not empty %}
+        {% set ajaxAttrs = ajaxAttrs|merge({
+            'data-champs-ajax-confirm': confirm
+        }) %}
+    {% endif %}
 
     {% for k, v in fields %}
         {% set ajaxAttrs = ajaxAttrs|merge({
