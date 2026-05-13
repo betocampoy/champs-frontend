@@ -76,6 +76,18 @@ import { initActionRules, runUiActions, runActionRules, runNamedActionRules } fr
 //    - champs:ajax:error    => erro de rede/processamento ou JSON inválido
 //    - champs:ajax:end      => sempre ao finalizar
 //    - Payload em detail: triggerEl, response, actions, data, meta, success, route, method, context
+//
+// ✅ NOVO: suporte correto para GET/HEAD
+//    - GET/HEAD NÃO enviam FormData no body, pois fetch() não permite body nesses métodos
+//    - campos coletados pelo AjaxForm são serializados automaticamente na querystring
+//    - preserva:
+//      - data-champs-ajax-with-inputs
+//      - submit declarativo via data-champs-ajax-submit="true"
+//      - data-champs-ajax-field-*
+//      - data-champs-ajax-include-champs-filter
+//      - múltiplos valores
+//      - arrays no formato campo[]
+//    - demais métodos continuam usando FormData no body normalmente
 
 import Message from './Message.js';
 import { applyValidationError } from './ValidationError.js';
@@ -284,21 +296,21 @@ export async function handleAjax(triggerEl) {
         const detail = { triggerEl, route, method };
         document.dispatchEvent(new CustomEvent('champs:ajax:start', { detail }));
 
-        const res = await fetch(route, {
-            method,
-            body: fd,
-            headers: (() => {
-                const h = { 'X-Champs-Ajax': '1' };
+        const fetchHeaders = (() => {
+            const h = { 'X-Champs-Ajax': '1' };
 
-                const hasLocalLoader =
-                    !!configSource?.dataset?.champsLoaderTarget ||
-                    configSource?.hasAttribute?.('data-champs-loader');
+            const hasLocalLoader =
+                !!configSource?.dataset?.champsLoaderTarget ||
+                configSource?.hasAttribute?.('data-champs-loader');
 
-                h['X-Global-Loader'] = hasLocalLoader ? '0' : '1';
+            h['X-Global-Loader'] = hasLocalLoader ? '0' : '1';
 
-                return h;
-            })(),
-        });
+            return h;
+        })();
+
+        const { finalRoute, fetchOptions } = buildFetchRequest(route, method, fd, fetchHeaders);
+
+        const res = await fetch(finalRoute, fetchOptions);
 
         let json = null;
         const ct = res.headers.get('content-type') || '';
@@ -1007,6 +1019,39 @@ function mergeChampsFilterIntoFormData(fd, filterFd) {
     }
 
     return merged;
+}
+
+function buildFetchRequest(route, method, fd, headers = {}) {
+    const normalizedMethod = String(method || 'POST').toUpperCase();
+
+    const fetchOptions = {
+        method: normalizedMethod,
+        headers,
+    };
+
+    let finalRoute = route;
+
+    // GET/HEAD não podem ter body no fetch().
+    // Para esses métodos, o payload do AjaxForm é serializado na querystring.
+    if (normalizedMethod === 'GET' || normalizedMethod === 'HEAD') {
+        const params = new URLSearchParams();
+
+        for (const [key, value] of fd.entries()) {
+            params.append(key, value);
+        }
+
+        const qs = params.toString();
+
+        if (qs) {
+            finalRoute += (finalRoute.includes('?') ? '&' : '?') + qs;
+        }
+
+        return { finalRoute, fetchOptions };
+    }
+
+    fetchOptions.body = fd;
+
+    return { finalRoute, fetchOptions };
 }
 
 function buildFormData(triggerEl) {
