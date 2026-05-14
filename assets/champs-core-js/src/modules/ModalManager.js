@@ -33,8 +33,33 @@ import { initCore } from '../init.js';
  *    - RemoteSelect, AjaxForm, ZipcodeSearch, máscaras etc. passam a funcionar em modais injetados
  */
 
+
 const modalStack = []; // [{ modalEl, backdropEl, action, ctx, escHandler, bsModal }]
 const focusHistoryStack = []; // [HTMLElement]
+
+function getTopModalEntry() {
+    return modalStack[modalStack.length - 1] || null;
+}
+
+function shouldUseBootstrapForNextModal() {
+    const Bootstrap = getBootstrap();
+
+    if (!Bootstrap?.Modal) {
+        return false;
+    }
+
+    const top = getTopModalEntry();
+
+    // Regra importante:
+    // se já existe modal aberto, o próximo modal deve seguir o mesmo modo.
+    // Evita misturar modal Champs fallback com modal Bootstrap,
+    // que quebra backdrop, focus e close/dismiss em fluxos nested.
+    if (top) {
+        return !!top.bsModal;
+    }
+
+    return true;
+}
 
 export function openModal(action = {}, ctx = {}) {
     if (action?.html) return openHtmlModal(action, ctx);
@@ -45,7 +70,7 @@ export function confirm(opts = {}, ctx = {}) {
     return new Promise((resolve) => {
         const Bootstrap = getBootstrap();
 
-        if (Bootstrap?.Modal) {
+        if (shouldUseBootstrapForNextModal()) {
             const modalId = uniqueId('champs-confirm');
             const size = String(opts.size || 'sm').toLowerCase();
             const modalSizeClass =
@@ -150,15 +175,16 @@ function openHtmlModal(action, ctx) {
     const first = wrapper.firstElementChild;
     const Bootstrap = getBootstrap();
     const wantsFullHtml = action?.full === true || String(action?.mode || '').toLowerCase() === 'full';
+    const canUseBootstrap = shouldUseBootstrapForNextModal();
 
-    if (wantsFullHtml && first && first.classList?.contains('modal') && Bootstrap?.Modal) {
+    if (wantsFullHtml && first && first.classList?.contains('modal') && Bootstrap?.Modal && canUseBootstrap) {
         document.body.appendChild(first);
         initCore(first);
         showModal(first, action, ctx);
         return;
     }
 
-    if (first && first.classList?.contains('modal') && Bootstrap?.Modal) {
+    if (first && first.classList?.contains('modal') && Bootstrap?.Modal && canUseBootstrap) {
         document.body.appendChild(first);
         initCore(first);
         showModal(first, action, ctx);
@@ -403,6 +429,13 @@ function closeTopBootstrap(reason = 'close') {
         };
 
         modalEl.addEventListener('hidden.bs.modal', onHidden, { once: true });
+
+        if (document.activeElement instanceof HTMLElement && modalEl.contains(document.activeElement)) {
+            try {
+                document.activeElement.blur();
+            } catch {}
+        }
+
         bsModal.hide();
     });
 }
