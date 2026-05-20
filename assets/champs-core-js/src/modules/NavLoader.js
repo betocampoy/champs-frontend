@@ -100,7 +100,29 @@ function shouldBypassForLinkClick(event) {
 
 function shouldBypassForFormSubmit(formEl) {
     if (!formEl) return false;
-    return !!formEl.closest?.('[data-champs-no-loader]');
+
+    // bypass manual
+    if (formEl.closest?.('[data-champs-no-loader]')) {
+        return true;
+    }
+
+    // downloads explícitos
+    if (
+        formEl.hasAttribute('download') ||
+        formEl.dataset?.download !== undefined
+    ) {
+        return true;
+    }
+
+    // targets especiais
+    if (
+        formEl.target === '_blank' ||
+        formEl.target === 'download-frame'
+    ) {
+        return true;
+    }
+
+    return false;
 }
 
 // === Ajax loader targeting ===
