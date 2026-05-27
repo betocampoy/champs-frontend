@@ -3,7 +3,7 @@
         <h4 class="mb-1">{{ title|default('Listagem') }}</h4>
 
         {% if subtitle is defined and subtitle %}
-            <div class="text-muted small">{{ subtitle }}</div>
+            <div class="text-muted small">{{ subtitle|raw }}</div>
         {% endif %}
     </div>
 
