@@ -30,6 +30,7 @@
     {% include '@ChampsFrontend/components/list/_empty.html.twig' with {
         title: emptyTitle|default('Nada encontrado'),
         message: emptyMessage|default('Nenhum registro localizado no banco de dados!'),
-        icon: emptyIcon|default('bi-inbox')
+        icon: emptyIcon|default('bi-inbox'),
+        itemsId: itemsId,
     } only %}
 {% endif %}
