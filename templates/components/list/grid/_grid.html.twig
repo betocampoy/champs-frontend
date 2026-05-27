@@ -1,4 +1,4 @@
-{% set itemsId = itemsId|default('model') ~ '-items' %}
+{% set itemsId = itemsId|default('model' ~ '-items' ) %}
 
 <div class="row g-3" {% if itemsId %}id="{{ itemsId }}"{% endif %}>
         {% for item in items %}
