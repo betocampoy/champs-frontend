@@ -5,6 +5,7 @@ import { initZipcodeSearch } from "./modules/ZipcodeSearch.js";
 import { initVisibilityToggle } from "./modules/VisibilityToggle.js";
 import { initCheckboxGroup } from "./modules/CheckboxGroup.js";
 import { initCopyText } from "./modules/CopyText.js";
+import { initValueSync } from "./modules/ValueSync.js";
 import { initLoader } from './modules/Loader.js';
 import { initNavLoader } from './modules/NavLoader.js';
 import { initAjaxForm } from './modules/AjaxForm.js';
@@ -30,6 +31,7 @@ export function initCore(scope = document) {
     initVisibilityToggle(scope);
     initCheckboxGroup(scope);
     initCopyText(scope);
+    initValueSync(scope);
     initAjaxForm(scope);
     initDatalist(scope);
     initConsentManager(scope);

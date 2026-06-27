@@ -122,7 +122,7 @@ export default class DomPatch {
     }
 
     static requiresHtml(operation) {
-        return ['replace', 'hrml', 'append', 'prepend'].includes(operation);
+        return ['replace', 'html', 'append', 'prepend'].includes(operation);
     }
 
     static executeHtmlOperation(operation, targets, html, ctx = {}) {
