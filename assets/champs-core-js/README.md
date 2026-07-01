@@ -8,6 +8,7 @@ Funcionalidades:
 - Pesquisar cep e preencher formulários automáticamente (ZipcodeSearch)
 - Ocultar/Visualizar informações sensíveis (VisibilityToogle)
 - Alterar o campo e preencher outros dinamicamente (FormPopulate)
+- Notificações Push via Firebase Cloud Messaging (PushManager)
 - etc
 
 ------------------------------------------------------------------------
@@ -59,7 +60,8 @@ Legenda: - ✅ Refatorado (em `src/modules/`) - 🕘 Legado (ainda fora de
 | `AjaxForm.js`         | ✅      | Realiza o envio via ajax e manipula a resposta conforme a ação recebida 
 | `AutoOpen.js`         | ✅      | Permite abrir automaticamente elementos que já possua comportamento declarativo 
 | `ConsentManager.js`   | ✅      | Gerencia consentimento de cookies e categorias de rastreamento (LGPD). 
-| `Validate.js`         | ✅      | Validação declarativa (via data-*) de documentos (CPF, CNPJ e IE)  
+| `Validate.js`         | ✅      | Validação declarativa (via data-*) de documentos (CPF, CNPJ e IE)
+| `PushManager.js`      | ✅      | Notificações Push via Firebase Cloud Messaging (FCM)
 
 # 🧼 InputSanitize (✅)
 
@@ -987,3 +989,125 @@ Estrutura:
 -   Campos podem revalidar outros automaticamente
 -   Integração visual Bootstrap
 -   Integração opcional com sistema global de erro
+
+------------------------------------------------------------------------
+
+# 🔔 Módulo: PushManager (✅)
+
+Arquivo: `src/modules/PushManager.js`
+
+Ativa notificações Push via **Firebase Cloud Messaging (FCM)** de forma
+declarativa. Importa o Firebase SDK automaticamente via CDN — sem
+necessidade de instalação adicional ou bundler.
+
+## ✅ Ativação
+
+Adicione os atributos na tag `<body>`:
+
+``` html
+<body
+    data-champs-push
+    data-champs-push-api-key="AIzaSy..."
+    data-champs-push-auth-domain="meu-projeto.firebaseapp.com"
+    data-champs-push-project-id="meu-projeto"
+    data-champs-push-storage-bucket="meu-projeto.appspot.com"
+    data-champs-push-messaging-sender-id="123456789"
+    data-champs-push-app-id="1:123456789:web:abc123"
+    data-champs-push-vapid-key="BPxxxx..."
+    data-champs-push-register-route="/push/registrar"
+    data-champs-push-topics="noticias,alertas"
+    data-champs-push-auto-request="false"
+>
+```
+
+## 🔧 Atributos Disponíveis
+
+| Atributo | Obrigatório | Função |
+|---|---|---|
+| `data-champs-push` | ✅ | Ativa o módulo |
+| `data-champs-push-api-key` | ✅ | Firebase `apiKey` |
+| `data-champs-push-auth-domain` | ✅ | Firebase `authDomain` |
+| `data-champs-push-project-id` | ✅ | Firebase `projectId` |
+| `data-champs-push-storage-bucket` | ✅ | Firebase `storageBucket` |
+| `data-champs-push-messaging-sender-id` | ✅ | Firebase `messagingSenderId` |
+| `data-champs-push-app-id` | ✅ | Firebase `appId` |
+| `data-champs-push-vapid-key` | ✅ | Chave VAPID (Firebase Console > Cloud Messaging > Web Push certificates) |
+| `data-champs-push-register-route` | ✅ | Endpoint POST que receberá o token FCM |
+| `data-champs-push-topics` | ❌ | Tópicos separados por vírgula: `"noticias,alertas"` |
+| `data-champs-push-auto-request` | ❌ | `"true"` solicita permissão ao carregar. Default: `false` |
+| `data-champs-push-sw-url` | ❌ | URL do service worker. Default: `/firebase-messaging-sw.js` |
+| `data-champs-push-sdk-version` | ❌ | Versão do Firebase SDK. Default: fixado no módulo |
+| `data-champs-push-measurement-id` | ❌ | Firebase `measurementId` (opcional) |
+
+## 📌 Service Worker
+
+O módulo precisa que o arquivo `firebase-messaging-sw.js` esteja
+disponível na raiz pública do site. O pacote fornece o template:
+
+```bash
+# Copiar para o root público (Symfony ou legado):
+cp vendor/betocampoy/champs-frontend/assets/champs-core-js/firebase-messaging-sw.js public/firebase-messaging-sw.js
+```
+
+O arquivo **não precisa ser editado** — a configuração do Firebase é
+enviada automaticamente pelo módulo via `postMessage`.
+
+## 🔹 API Pública
+
+``` javascript
+window.Champs.push.requestPermission()   // Solicita permissão e registra o token
+window.Champs.push.getPermissionState()  // Retorna "granted" | "denied" | "default"
+window.Champs.push.isSupported()         // Verifica suporte do navegador
+```
+
+## 📌 Botão de ativação
+
+``` html
+<button onclick="window.Champs.push.requestPermission()">
+    Ativar notificações
+</button>
+```
+
+## 📤 Payload enviado ao backend
+
+O módulo faz um `POST` para `data-champs-push-register-route` com:
+
+``` json
+{
+    "token": "fcm-token-aqui",
+    "topics": ["noticias", "alertas"],
+    "userAgent": "Mozilla/5.0 ..."
+}
+```
+
+## 🔔 Eventos Disparados
+
+| Evento | Quando |
+|---|---|
+| `champs:push:ready` | Firebase inicializado com sucesso |
+| `champs:push:permission-granted` | Permissão concedida pelo usuário |
+| `champs:push:permission-denied` | Permissão negada |
+| `champs:push:registered` | Token enviado e registrado no backend |
+| `champs:push:message` | Mensagem recebida com a página aberta (foreground) |
+| `champs:push:error` | Erro de inicialização, config ausente ou permissão |
+
+Estrutura do `event.detail` para `champs:push:message`:
+
+``` javascript
+{
+    payload: {
+        notification: { title, body, image },
+        data: { clickUrl, ... }
+    }
+}
+```
+
+## 🧠 Fluxo Implementado
+
+1. Lê config do Firebase dos atributos `data-champs-push-*` no `<body>`
+2. Importa Firebase App e Messaging via CDN (dynamic `import()`)
+3. Registra o service worker e envia o config via `postMessage`
+4. Expõe `window.Champs.push` com API pública
+5. Registra listener para mensagens em foreground (exibe via `Message.show()` se disponível)
+6. Se `auto-request="true"` e permissão ainda não concedida: solicita permissão ao usuário
+7. Se permissão já estava concedida: apenas atualiza e envia o token ao backend

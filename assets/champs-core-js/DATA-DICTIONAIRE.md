@@ -123,6 +123,27 @@ Atributo | Função
 
 ------------------------------------------------------------------------
 
+## Modulo: PushManager
+
+ Atributo                                | Obrigatório | Função
+|-----------------------------------------|-------------|---
+| `data-champs-push`                       | ✅           | Ativa o módulo (colocar no `<body>`)
+| `data-champs-push-api-key`               | ✅           | Firebase `apiKey`
+| `data-champs-push-auth-domain`           | ✅           | Firebase `authDomain`
+| `data-champs-push-project-id`            | ✅           | Firebase `projectId`
+| `data-champs-push-storage-bucket`        | ✅           | Firebase `storageBucket`
+| `data-champs-push-messaging-sender-id`   | ✅           | Firebase `messagingSenderId`
+| `data-champs-push-app-id`                | ✅           | Firebase `appId`
+| `data-champs-push-vapid-key`             | ✅           | Chave VAPID (Firebase Console > Cloud Messaging)
+| `data-champs-push-register-route`        | ✅           | Endpoint POST para salvar o token no backend
+| `data-champs-push-topics`                | ❌           | Tópicos separados por vírgula: `"noticias,alertas"`
+| `data-champs-push-auto-request`          | ❌           | `"true"` solicita permissão automaticamente (default: `false`)
+| `data-champs-push-sw-url`                | ❌           | URL do service worker (default: `/firebase-messaging-sw.js`)
+| `data-champs-push-sdk-version`           | ❌           | Versão do Firebase SDK (default: fixado no módulo)
+| `data-champs-push-measurement-id`        | ❌           | Firebase `measurementId` (opcional, para Analytics)
+
+------------------------------------------------------------------------
+
 ## Modulo: VisibilityToggle
 
  Atributo                          | Função
@@ -165,6 +186,12 @@ Atributo | Função
 | `champs:ajax:error` | AjaxForm | Disparado após erro na requisição
 | `champs:loader:show` | Loader | Quando loader é exibido
 | `champs:loader:hide` | Loader | Quando loader é ocultado
+| `champs:push:ready` | PushManager | Firebase inicializado com sucesso
+| `champs:push:permission-granted` | PushManager | Permissão de notificação concedida
+| `champs:push:permission-denied` | PushManager | Permissão de notificação negada
+| `champs:push:registered` | PushManager | Token registrado no backend
+| `champs:push:message` | PushManager | Mensagem recebida em foreground
+| `champs:push:error` | PushManager | Erro de inicialização ou registro
 
 ------------------------------------------------------------------------
 

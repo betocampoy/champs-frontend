@@ -20,6 +20,7 @@ import { initFormSectionsPersistence } from './modules/FormSectionsPersistence.j
 import { initFormSubmitControl } from './modules/FormSubmitControl.js';
 import { initCalc } from "./modules/Calc.js";
 import { initNotificationCenter } from './modules/NotificationCenter.js';
+import { initPushManager } from './modules/PushManager.js';
 
 export function initCore(scope = document) {
     initLoader(scope);
@@ -46,4 +47,6 @@ export function initCore(scope = document) {
     initTabsPersistence(scope);
     initFormSectionsPersistence(scope);
     initAutoOpen(scope); // por último, porque pode disparar cliques
+
+    initPushManager(scope); // async — não bloqueia o restante da inicialização
 }

@@ -332,6 +332,7 @@ Para documentação detalhada de cada módulo, consulte [`assets/champs-core-js/
 | `ConsentManager` | `modules/ConsentManager.js` | Consentimento de cookies (LGPD) |
 | `DynamicColspan` | `modules/DynamicColspan.js` | Colspan automático em tabelas |
 | `Calc` | `modules/Calc.js` | Cálculos dinâmicos em formulários |
+| `PushManager` | `modules/PushManager.js` | Notificações Push via Firebase FCM |
 
 ### Exemplos rápidos
 
@@ -435,6 +436,92 @@ As actions abaixo interrompem a execução do pipeline assim que são processada
 - `validation-error`
 - `redirect`
 - `reload`
+
+---
+
+## PHP: Notificações Push (FcmClient)
+
+Classe para envio de notificações Push via **FCM HTTP v1 API**. Sem dependências externas — usa `openssl` e `curl` (padrão no PHP 8.1+).
+
+### Pré-requisito
+
+Baixe o JSON de credenciais do service account em:
+
+> Firebase Console → Configurações do projeto → Contas de serviço → **Gerar nova chave privada**
+
+### Envio por token
+
+```php
+use BetoCampoy\Champs\Frontend\Push\FcmClient;
+use BetoCampoy\Champs\Frontend\Push\PushNotification;
+
+$client = new FcmClient('/caminho/para/service-account.json');
+
+$notification = PushNotification::make()
+    ->title('Pedido aprovado!')
+    ->body('Seu pedido #1234 foi aprovado e está a caminho.')
+    ->image('https://meusite.com/img/thumb.jpg')
+    ->url('https://meusite.com/pedidos/1234');
+
+// Um token
+$client->sendToToken($notification, $fcmToken);
+
+// Múltiplos tokens (um request por token)
+$client->sendToTokens($notification, [$token1, $token2]);
+```
+
+### Envio por tópico
+
+```php
+$client->sendToTopic($notification, 'alertas');
+```
+
+### Gerenciar inscrição em tópicos
+
+```php
+// Inscrever token em um tópico
+$client->subscribeToTopic($fcmToken, 'noticias');
+
+// Remover inscrição
+$client->unsubscribeFromTopic($fcmToken, 'noticias');
+```
+
+> **Nota:** O gerenciamento de tópicos usa a API legada do Firebase que requer a **Server Key** (chave do servidor). Adicione o campo `server_key` ao JSON do service account, ou consulte Firebase Console → Configurações → Cloud Messaging → **Chave do servidor**.
+
+### Estrutura de tabela recomendada
+
+```sql
+CREATE TABLE champs_push_subscriptions (
+    id                BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    token_fingerprint CHAR(64) NOT NULL,         -- SHA-256 do token (dedup)
+    fcm_token         TEXT NOT NULL,
+    user_id           BIGINT UNSIGNED NULL,       -- FK opcional (via sessão do backend)
+    topics            JSON NULL,                  -- ["noticias", "alertas"]
+    user_agent        VARCHAR(500) NULL,
+    created_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    active            TINYINT(1) NOT NULL DEFAULT 1,
+    UNIQUE KEY uq_token_fingerprint (token_fingerprint),
+    INDEX idx_user_id (user_id),
+    INDEX idx_active (active)
+);
+```
+
+### Endpoint de registro (backend do projeto consumidor)
+
+```php
+// POST /push/registrar
+$data     = json_decode(file_get_contents('php://input'), true);
+$token    = $data['token']  ?? '';
+$topics   = $data['topics'] ?? [];
+$userId   = $_SESSION['user_id'] ?? null;
+$agent    = $data['userAgent'] ?? '';
+
+$fingerprint = hash('sha256', $token);
+
+// Inserir ou atualizar (upsert por fingerprint)
+// Se o token tiver topics, fazer subscribe via FcmClient::subscribeToTopic()
+```
 
 ---
 

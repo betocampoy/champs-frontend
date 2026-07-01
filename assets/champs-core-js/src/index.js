@@ -20,3 +20,5 @@ export * from './utils/brDocuments.js';
 
 export * from './init.js';
 
+export { default as PushManager } from './modules/PushManager.js';
+
