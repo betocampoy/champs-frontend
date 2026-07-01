@@ -1,62 +1,46 @@
 // firebase-messaging-sw.js
-// Arquivo de Service Worker para notificações Firebase em background.
+// Service Worker para notificações Firebase em background.
 //
 // INSTRUÇÕES DE USO:
-//   1. Copie este arquivo para o root público do seu projeto:
-//      - Symfony:  cp vendor/betocampoy/champs-frontend/assets/champs-core-js/firebase-messaging-sw.js public/firebase-messaging-sw.js
-//      - Legado:   cp vendor/betocampoy/champs-frontend/assets/champs-core-js/firebase-messaging-sw.js public/firebase-messaging-sw.js
-//   2. NÃO edite este arquivo — a configuração do Firebase é enviada automaticamente
-//      pelo módulo PushManager.js via postMessage.
+//   Copie este arquivo para o root público do seu projeto:
+//     cp vendor/betocampoy/champs-frontend/assets/champs-core-js/firebase-messaging-sw.js public/firebase-messaging-sw.js
 //
-// O service worker precisa estar na raiz do site (ex: https://meusite.com/firebase-messaging-sw.js)
-// para que o Firebase possa interceptar notificações push em background.
+// Não usa Firebase compat — trata o evento push diretamente para ser confiável
+// mesmo quando o SW acorda "frio" (sem página aberta).
 
-const FIREBASE_VERSION = '10.12.0';
+// ── Background push ───────────────────────────────────────────────────────────
 
-importScripts(
-    `https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-app-compat.js`,
-    `https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-messaging-compat.js`,
-);
+self.addEventListener('push', (event) => {
+    event.waitUntil((async () => {
+        let payload = {};
+        try {
+            payload = event.data?.json() ?? {};
+        } catch (_) {}
 
-let messaging = null;
+        const notification = payload.notification || {};
+        const data         = payload.data         || {};
 
-// Recebe o firebaseConfig enviado pelo PushManager.js após o registro do SW
-self.addEventListener('message', (event) => {
-    if (!event.data || event.data.type !== 'CHAMPS_PUSH_CONFIG') return;
+        const title = notification.title || data.title || 'Notificação';
 
-    // Evita reinicializar se já estiver configurado
-    if (messaging) return;
+        const options = {
+            body:  notification.body  || data.body  || '',
+            icon:  notification.icon  || data.icon  || '/favicon.ico',
+            badge: data.badge || '',
+            data:  {
+                clickUrl: data.url || data.clickUrl || '/',
+            },
+        };
 
-    try {
-        const app = firebase.initializeApp(event.data.config);
-        messaging = firebase.messaging(app);
+        if (notification.image) {
+            options.image = notification.image;
+        }
 
-        messaging.onBackgroundMessage((payload) => {
-            const notification = payload.notification || {};
-            const data         = payload.data         || {};
-
-            const title   = notification.title || data.title || 'Notificação';
-            const options = {
-                body:  notification.body  || data.body  || '',
-                icon:  notification.image || data.icon  || '/favicon.ico',
-                badge: data.badge         || '',
-                data:  {
-                    clickUrl: data.clickUrl || data.url || notification.click_action || '/',
-                },
-            };
-
-            if (notification.image) {
-                options.image = notification.image;
-            }
-
-            self.registration.showNotification(title, options);
-        });
-    } catch (err) {
-        console.error('[champs:push:sw] Erro ao inicializar Firebase:', err);
-    }
+        return self.registration.showNotification(title, options);
+    })());
 });
 
-// Abre a URL de destino ao clicar na notificação
+// ── Notification click ────────────────────────────────────────────────────────
+
 self.addEventListener('notificationclick', (event) => {
     event.notification.close();
 
@@ -66,13 +50,11 @@ self.addEventListener('notificationclick', (event) => {
         clients
             .matchAll({ type: 'window', includeUncontrolled: true })
             .then((windowClients) => {
-                // Reusa uma aba já aberta com a mesma URL, se existir
                 for (const client of windowClients) {
                     if (client.url === url && 'focus' in client) {
                         return client.focus();
                     }
                 }
-                // Caso contrário, abre nova aba
                 if (clients.openWindow) {
                     return clients.openWindow(url);
                 }

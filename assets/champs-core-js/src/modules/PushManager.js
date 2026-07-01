@@ -24,6 +24,35 @@ function readTopics(body) {
     return raw ? raw.split(',').map((t) => t.trim()).filter(Boolean) : [];
 }
 
+function showForegroundToast(title, body, url = null) {
+    const el = document.createElement('div');
+    el.setAttribute('role', 'alert');
+    el.setAttribute('aria-live', 'assertive');
+    el.style.cssText = [
+        'position:fixed', 'bottom:1rem', 'right:1rem', 'z-index:9999',
+        'min-width:280px', 'max-width:360px',
+        'background:#fff', 'border:1px solid rgba(0,0,0,.12)',
+        'border-radius:.5rem', 'box-shadow:0 4px 12px rgba(0,0,0,.15)',
+        'padding:.75rem 1rem', 'display:flex', 'gap:.75rem', 'align-items:flex-start',
+    ].join(';');
+
+    el.innerHTML = `
+        <div style="flex:1;font-size:.9rem;${url ? 'cursor:pointer;' : ''}">
+            ${title ? `<div style="font-weight:600;margin-bottom:.2rem;">${title}</div>` : ''}
+            ${body  ? `<div style="color:#555;">${body}</div>` : ''}
+            ${url   ? `<div style="font-size:.8rem;color:#0d6efd;margin-top:.3rem;">Clique para abrir →</div>` : ''}
+        </div>
+        <button style="background:none;border:none;cursor:pointer;font-size:1.1rem;line-height:1;color:#999;padding:0;"
+                aria-label="Fechar">&times;</button>`;
+
+    if (url) {
+        el.querySelector('div').addEventListener('click', () => { window.open(url, '_self'); });
+    }
+    el.querySelector('button').addEventListener('click', (e) => { e.stopPropagation(); el.remove(); });
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 7000);
+}
+
 function isSupported() {
     return (
         'Notification' in window &&
@@ -197,7 +226,11 @@ export async function initPushManager(scope = document) {
                     `<strong>${notification.title || ''}</strong>${notification.body ? `<br>${notification.body}` : ''}`,
                     'info',
                 );
+                return;
             }
+
+            const url = payload.data?.url || payload.data?.clickUrl || null;
+            showForegroundToast(notification.title || '', notification.body || '', url);
         });
 
         // Solicitar permissão automaticamente

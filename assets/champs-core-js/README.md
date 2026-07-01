@@ -1108,6 +1108,34 @@ Estrutura do `event.detail` para `champs:push:message`:
 2. Importa Firebase App e Messaging via CDN (dynamic `import()`)
 3. Registra o service worker e envia o config via `postMessage`
 4. Expõe `window.Champs.push` com API pública
-5. Registra listener para mensagens em foreground (exibe via `Message.show()` se disponível)
+5. Registra listener para mensagens em foreground:
+   - Se `window.Champs.message.show` estiver disponível, usa-o
+   - Caso contrário, exibe um **toast nativo embutido** (sem dependências)
 6. Se `auto-request="true"` e permissão ainda não concedida: solicita permissão ao usuário
 7. Se permissão já estava concedida: apenas atualiza e envia o token ao backend
+
+## 🔔 Toast de Foreground (built-in)
+
+Quando a página está aberta e uma notificação chega, o módulo exibe um toast
+nativo no canto inferior direito. Se o payload contiver `data.url` ou
+`data.clickUrl`, o toast se torna clicável e navega para a URL ao clicar.
+
+``` javascript
+// Estrutura do payload recebido em foreground:
+{
+    notification: { title: "...", body: "..." },
+    data: { url: "https://meusite.com/agenda/todos" }
+}
+```
+
+Para substituir o toast padrão pelo sistema de mensagens do seu projeto,
+implemente `window.Champs.message.show(html, level)` antes de `initCore()`:
+
+``` javascript
+window.Champs = window.Champs || {};
+window.Champs.message = {
+    show: (html, level) => {
+        // sua implementação de toast/alert
+    }
+};
+```

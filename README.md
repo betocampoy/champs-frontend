@@ -441,7 +441,7 @@ As actions abaixo interrompem a execução do pipeline assim que são processada
 
 ## PHP: Notificações Push (FcmClient)
 
-Classe para envio de notificações Push via **FCM HTTP v1 API**. Sem dependências externas — usa `openssl` e `curl` (padrão no PHP 8.1+).
+O pacote fornece o **cliente JavaScript** (`PushManager.js`) e o **service worker** (`firebase-messaging-sw.js`) para captura e registro de tokens FCM no browser. O **envio server-side** fica a cargo do projeto consumidor usando `symfony/http-client` e a FCM HTTP v1 API.
 
 ### Pré-requisito
 
@@ -449,78 +449,74 @@ Baixe o JSON de credenciais do service account em:
 
 > Firebase Console → Configurações do projeto → Contas de serviço → **Gerar nova chave privada**
 
-### Envio por token
+Salve o arquivo fora do repositório (ex.: `config/firebase/firebase-service-account.json`) e adicione-o ao `.gitignore`.
+
+### Implementação recomendada no projeto consumidor (Symfony)
+
+**1. Serviço de envio (`FcmClient.php`):**
 
 ```php
-use BetoCampoy\Champs\Frontend\Push\FcmClient;
-use BetoCampoy\Champs\Frontend\Push\PushNotification;
+class FcmClient
+{
+    public function __construct(
+        private readonly HttpClientInterface $httpClient,
+        string $serviceAccountPath,          // caminho para o JSON baixado
+    ) { ... }
 
-$client = new FcmClient('/caminho/para/service-account.json');
+    // Envia para um token específico
+    // $options: ['icon' => URL, 'link' => URL, 'data' => []]
+    public function sendToToken(string $token, string $title, string $body, array $options = []): bool { ... }
 
-$notification = PushNotification::make()
-    ->title('Pedido aprovado!')
-    ->body('Seu pedido #1234 foi aprovado e está a caminho.')
-    ->image('https://meusite.com/img/thumb.jpg')
-    ->url('https://meusite.com/pedidos/1234');
-
-// Um token
-$client->sendToToken($notification, $fcmToken);
-
-// Múltiplos tokens (um request por token)
-$client->sendToTokens($notification, [$token1, $token2]);
+    // Envia para todos os dispositivos de um usuário (remove tokens inválidos automaticamente)
+    public function sendToUser(User $user, string $title, string $body, PushSubscriptionRepository $repo, array $options = []): int { ... }
+}
 ```
 
-### Envio por tópico
+**2. Entidade de persistência (`PushSubscription`):**
 
 ```php
-$client->sendToTopic($notification, 'alertas');
+// Um token por linha, vinculado ao usuário logado no momento do registro.
+// Quando um usuário diferente loga no mesmo browser, o token é transferido (upsert por token único).
+class PushSubscription
+{
+    private User $user;
+    private string $token;      // único — um browser = um token
+    private ?string $userAgent;
+    private DateTimeImmutable $createdAt;
+    private DateTimeImmutable $lastSeenAt;
+}
 ```
 
-### Gerenciar inscrição em tópicos
-
-```php
-// Inscrever token em um tópico
-$client->subscribeToTopic($fcmToken, 'noticias');
-
-// Remover inscrição
-$client->unsubscribeFromTopic($fcmToken, 'noticias');
-```
-
-> **Nota:** O gerenciamento de tópicos usa a API legada do Firebase que requer a **Server Key** (chave do servidor). Adicione o campo `server_key` ao JSON do service account, ou consulte Firebase Console → Configurações → Cloud Messaging → **Chave do servidor**.
-
-### Estrutura de tabela recomendada
-
-```sql
-CREATE TABLE champs_push_subscriptions (
-    id                BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    token_fingerprint CHAR(64) NOT NULL,         -- SHA-256 do token (dedup)
-    fcm_token         TEXT NOT NULL,
-    user_id           BIGINT UNSIGNED NULL,       -- FK opcional (via sessão do backend)
-    topics            JSON NULL,                  -- ["noticias", "alertas"]
-    user_agent        VARCHAR(500) NULL,
-    created_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    active            TINYINT(1) NOT NULL DEFAULT 1,
-    UNIQUE KEY uq_token_fingerprint (token_fingerprint),
-    INDEX idx_user_id (user_id),
-    INDEX idx_active (active)
-);
-```
-
-### Endpoint de registro (backend do projeto consumidor)
+**3. Endpoint de registro (controller):**
 
 ```php
 // POST /push/registrar
-$data     = json_decode(file_get_contents('php://input'), true);
-$token    = $data['token']  ?? '';
-$topics   = $data['topics'] ?? [];
-$userId   = $_SESSION['user_id'] ?? null;
-$agent    = $data['userAgent'] ?? '';
+public function register(Request $request, PushSubscriptionRepository $repo): JsonResponse
+{
+    $data = json_decode($request->getContent(), true) ?? [];
+    if ($token = $data['token'] ?? null) {
+        $repo->upsert($this->getUser(), $token, $data['userAgent'] ?? null);
+    }
+    return new JsonResponse(['ok' => true]);
+}
+```
 
-$fingerprint = hash('sha256', $token);
+**4. Envio com ícone e link (exemplo):**
 
-// Inserir ou atualizar (upsert por fingerprint)
-// Se o token tiver topics, fazer subscribe via FcmClient::subscribeToTopic()
+```php
+$fcm->sendToUser($user, 'Tarefa pendente', 'Você tem 3 tarefas para hoje.', $repo, [
+    'icon' => 'https://meusite.com/images/icon-192.png',
+    'link' => 'https://meusite.com/agenda/todos',
+]);
+```
+
+**5. Command para cron:**
+
+```bash
+php bin/console app:push:notificar \
+  --titulo="Bom dia!" \
+  --mensagem="Você tem tarefas pendentes para hoje." \
+  --link="/agenda/todos"
 ```
 
 ---
