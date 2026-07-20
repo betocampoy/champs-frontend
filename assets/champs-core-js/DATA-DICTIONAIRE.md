@@ -20,6 +20,8 @@ servem.
 | `data-champs-ajax-form`               | Nome do form associado
 | `data-champs-ajax-priorize-data-attr` | Prioriza data-attr sobre form
 | `data-champs-ajax-route`              | URL da requisição
+| `data-champs-ajax-submit`             | Intercepta o submit natural do form (declarativo)
+| `data-champs-ajax-queue`              | (usar junto com `-submit`) enfileira submits em vez de descartar os que chegam com um já em voo — dispara `champs:ajax:queue:added/start/done`
 | `data-champs-ajax-trigger`            | Evento disparador
 | `data-champs-ajax-with-inputs`        | Envia inputs do elemento
 | `data-champs-populate-child`          | Usado no FormPopulation

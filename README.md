@@ -382,6 +382,37 @@ Para documentação detalhada de cada módulo, consulte [`assets/champs-core-js/
 </button>
 ```
 
+**Fila de submits (bipagem/scanner mais rápido que o round-trip):**
+
+```html
+<form data-champs-ajax-submit="true"
+      data-champs-ajax-queue="true"
+      data-champs-ajax-route="/api/processar">
+    <input type="text" name="codigo" autofocus autocomplete="off">
+</form>
+```
+
+Sem `data-champs-ajax-queue`, um submit disparado enquanto o anterior ainda
+está em voo é simplesmente descartado. Com a fila ativada, cada submit tira
+um snapshot dos campos na hora (o usuário já pode digitar/bipar o próximo
+valor) e processa um item por vez, em ordem. A lib não desenha nenhuma UI —
+cada tela ouve os 3 eventos e desenha sua própria lista "fila"/"processados":
+
+```js
+document.addEventListener('champs:ajax:queue:added', (e) => {
+    // e.detail: { form, queueItemId, remaining, fieldValues }
+    // renderizar o item na lista de "aguardando processamento"
+});
+document.addEventListener('champs:ajax:queue:start', (e) => {
+    // e.detail: { form, queueItemId, remaining }
+});
+document.addEventListener('champs:ajax:queue:done', (e) => {
+    // e.detail: { form, queueItemId, remaining }
+    // remover o item da lista de "fila" (o resultado em si já chegou via
+    // as actions normais da resposta — dom-patch/custom/message)
+});
+```
+
 ---
 
 ## PHP: AjaxFormResponse
