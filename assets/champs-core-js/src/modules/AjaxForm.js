@@ -77,6 +77,17 @@ import { initActionRules, runUiActions, runActionRules, runNamedActionRules } fr
 //    - champs:ajax:end      => sempre ao finalizar
 //    - Payload em detail: triggerEl, response, actions, data, meta, success, route, method, context
 //
+// ✅ NOVO: fila de submits (data-champs-ajax-queue="true")
+//    - opt-in num form que já usa data-champs-ajax-submit="true"
+//    - sem fila: um submit enquanto outro está em voo é descartado (comportamento
+//      de sempre); com fila, cada submit captura um snapshot dos campos NA HORA
+//      (o operador pode continuar digitando/bipando o próximo valor) e processa
+//      um de cada vez, em ordem, sem sobrepor requisições
+//    - eventos públicos: champs:ajax:queue:added / :start / :done
+//      (detail: {form, queueItemId, remaining, fieldValues} — fieldValues só em :added)
+//    - a lib não desenha nenhuma UI de fila; cada tela ouve os eventos e
+//      renderiza sua própria lista
+//
 // ✅ NOVO: suporte correto para GET/HEAD
 //    - GET/HEAD NÃO enviam FormData no body, pois fetch() não permite body nesses métodos
 //    - campos coletados pelo AjaxForm são serializados automaticamente na querystring
@@ -98,6 +109,8 @@ import * as ModalManager from './ModalManager.js';
 let _bound = false;
 const _debounceTimers = new WeakMap();
 const _preopenedPages = new WeakMap();
+const _formQueues = new WeakMap();
+let _queueItemSeq = 0;
 
 /* ============================= */
 /*  INIT                         */
@@ -168,21 +181,22 @@ export function initAjaxForm(scope = document) {
         if (!(form instanceof HTMLFormElement)) return;
         if (form.dataset.champsAjaxSubmit !== 'true') return;
 
-        form.dataset.champsAjaxIntercepted = 'true';
-
-        if (form.dataset.champsAjaxSubmitting === 'true') {
-            event.preventDefault();
-            event.stopPropagation();
-            if (typeof event.stopImmediatePropagation === 'function') {
-                event.stopImmediatePropagation();
-            }
-            return;
-        }
-
         event.preventDefault();
         event.stopPropagation();
         if (typeof event.stopImmediatePropagation === 'function') {
             event.stopImmediatePropagation();
+        }
+
+        if (form.dataset.champsAjaxQueue === 'true') {
+            enqueueFormSubmit(form, event.submitter || null);
+            processNextQueued(form); // no-op se já tem uma requisição em voo
+            return;
+        }
+
+        form.dataset.champsAjaxIntercepted = 'true';
+
+        if (form.dataset.champsAjaxSubmitting === 'true') {
+            return;
         }
 
         await handleAjaxFormSubmit(form, event.submitter || null);
@@ -385,21 +399,71 @@ export async function handleAjax(triggerEl) {
     }
 }
 
-export async function handleAjaxFormSubmit(form, submitter = null) {
+export async function handleAjaxFormSubmit(form, submitter = null, snapshotFd = null) {
     if (!form) return;
 
     form.dataset.champsAjaxSubmitting = 'true';
 
     try {
-        const triggerEl = createFormSubmitTrigger(form, submitter);
+        const triggerEl = createFormSubmitTrigger(form, submitter, snapshotFd);
         await handleAjax(triggerEl);
     } finally {
         delete form.dataset.champsAjaxSubmitting;
         delete form.dataset.champsAjaxIntercepted;
+
+        if (form.dataset.champsAjaxQueue === 'true') {
+            processNextQueued(form);
+        }
     }
 }
 
-function createFormSubmitTrigger(form, submitter = null) {
+/* ============================= */
+/*  FILA DE SUBMITS              */
+/* ============================= */
+
+function enqueueFormSubmit(form, submitter) {
+    // Snapshot AGORA: o operador pode digitar/bipar o próximo valor no campo
+    // antes deste item ser efetivamente processado (a fila pode ter itens à
+    // frente ainda em voo).
+    const { fd } = collectScopeFormData(form);
+
+    if (!_formQueues.has(form)) {
+        _formQueues.set(form, []);
+    }
+    const queue = _formQueues.get(form);
+    const queueItemId = `${form.id || 'champs-queue'}-${++_queueItemSeq}`;
+    queue.push({ fd, submitter, queueItemId });
+
+    document.dispatchEvent(new CustomEvent('champs:ajax:queue:added', {
+        detail: {
+            form,
+            queueItemId,
+            remaining: queue.length,
+            fieldValues: Object.fromEntries(fd.entries()),
+        },
+    }));
+}
+
+function processNextQueued(form) {
+    if (form.dataset.champsAjaxSubmitting === 'true') return;
+
+    const queue = _formQueues.get(form);
+    if (!queue || queue.length === 0) return;
+
+    const next = queue.shift();
+
+    document.dispatchEvent(new CustomEvent('champs:ajax:queue:start', {
+        detail: { form, queueItemId: next.queueItemId, remaining: queue.length },
+    }));
+
+    handleAjaxFormSubmit(form, next.submitter, next.fd).then(() => {
+        document.dispatchEvent(new CustomEvent('champs:ajax:queue:done', {
+            detail: { form, queueItemId: next.queueItemId, remaining: queue.length },
+        }));
+    });
+}
+
+function createFormSubmitTrigger(form, submitter = null, snapshotFd = null) {
     const trigger = document.createElement('button');
     trigger.type = 'button';
 
@@ -436,6 +500,7 @@ function createFormSubmitTrigger(form, submitter = null) {
 
     trigger.__champsAjaxFormRef = form;
     trigger.__champsAjaxSubmitter = submitter || null;
+    trigger.__champsAjaxSnapshotFormData = snapshotFd || null;
 
     trigger.closest = function(selector) {
         if (!selector) return null;
@@ -1059,6 +1124,12 @@ function buildFormData(triggerEl) {
 
     const route = configSource.getAttribute('data-champs-ajax-route') || '';
     const method = (configSource.getAttribute('data-champs-ajax-method') || 'POST').toUpperCase();
+
+    if (triggerEl.__champsAjaxSnapshotFormData) {
+        // Item de fila: usa o snapshot capturado no momento do enqueue, nunca
+        // relê o DOM ao vivo (o form pode já ter outro valor digitado).
+        return { fd: triggerEl.__champsAjaxSnapshotFormData, route, method };
+    }
 
     const isFormSubmit = !!triggerEl.__champsAjaxFormRef;
 
