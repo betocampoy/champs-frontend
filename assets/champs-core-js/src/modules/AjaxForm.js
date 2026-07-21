@@ -1125,12 +1125,6 @@ function buildFormData(triggerEl) {
     const route = configSource.getAttribute('data-champs-ajax-route') || '';
     const method = (configSource.getAttribute('data-champs-ajax-method') || 'POST').toUpperCase();
 
-    if (triggerEl.__champsAjaxSnapshotFormData) {
-        // Item de fila: usa o snapshot capturado no momento do enqueue, nunca
-        // relê o DOM ao vivo (o form pode já ter outro valor digitado).
-        return { fd: triggerEl.__champsAjaxSnapshotFormData, route, method };
-    }
-
     const isFormSubmit = !!triggerEl.__champsAjaxFormRef;
 
     const withInputs = isFormSubmit
@@ -1142,7 +1136,17 @@ function buildFormData(triggerEl) {
     let fd = new FormData();
     let scopeFieldNames = new Set();
 
-    if (withInputs) {
+    if (triggerEl.__champsAjaxSnapshotFormData) {
+        // Item de fila: usa os campos capturados no momento do enqueue, nunca
+        // relê o DOM ao vivo (o form pode já ter outro valor digitado enquanto
+        // este item esperava na fila). O resto do pipeline (submitter,
+        // data-champs-ajax-field-*, champs-filter) continua igual, só a
+        // origem dos campos do form muda.
+        fd = triggerEl.__champsAjaxSnapshotFormData;
+        for (const [key] of fd.entries()) {
+            scopeFieldNames.add(key);
+        }
+    } else if (withInputs) {
         const scope = resolveInputScope(triggerEl);
 
         if (!scope) {
