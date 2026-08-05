@@ -164,16 +164,18 @@
     {% set labelClasses = cfg.labelClasses|default('') %}
     {% set inputClasses = cfg.inputClasses|default('') %}
     {% set helpClasses = cfg.helpClasses|default('') %}
+    {% set errors = cfg.errors|default([]) %}
+    {% set isInvalid = errors|length > 0 %}
 
     <div class="{{ col }} {{ wrapperClasses }}">
-        <div class="input-group {{ groupClasses }}">
+        <div class="input-group {{ groupClasses }} {{ isInvalid ? 'has-validation' : '' }}">
             {% if label %}
                 <span class="input-group-text {{ labelClasses }}">{{ label }}</span>
             {% endif %}
 
             <input
                     type="{{ type }}"
-                    class="form-control {{ inputClasses }}"
+                    class="form-control {{ inputClasses }} {{ isInvalid ? 'is-invalid' : '' }}"
                     name="{{ cfg.name }}"
                     id="{{ id }}"
                     value="{{ value }}"
@@ -187,6 +189,12 @@
             {% for btn in buttons %}
                 {{ ui.renderButton(btn) }}
             {% endfor %}
+
+            {% if isInvalid %}
+                <div class="invalid-feedback">
+                    {% for error in errors %}{{ error }}{% if not loop.last %}<br>{% endif %}{% endfor %}
+                </div>
+            {% endif %}
         </div>
 
         {% if help %}
@@ -226,6 +234,8 @@
     {% set groupClasses = cfg.groupClasses|default('') %}
     {% set inputClasses = cfg.inputClasses|default('') %}
     {% set helpClasses = cfg.helpClasses|default('') %}
+    {% set errors = cfg.errors|default([]) %}
+    {% set isInvalid = errors|length > 0 %}
 
     <div class="{{ col }} {{ wrapperClasses }}">
         {% if label %}
@@ -233,12 +243,12 @@
         {% endif %}
 
         {% if buttons|length > 0 %}
-        <div class="input-group {{ groupClasses }}">
+        <div class="input-group {{ groupClasses }} {{ isInvalid ? 'has-validation' : '' }}">
             {% endif %}
 
             <input
                     type="{{ type }}"
-                    class="form-control {{ inputClasses }}"
+                    class="form-control {{ inputClasses }} {{ isInvalid ? 'is-invalid' : '' }}"
                     name="{{ cfg.name }}"
                     id="{{ id }}"
                     value="{{ value }}"
@@ -252,6 +262,12 @@
             {% for btn in buttons %}
                 {{ ui.renderButton(btn) }}
             {% endfor %}
+
+            {% if isInvalid %}
+                <div class="invalid-feedback">
+                    {% for error in errors %}{{ error }}{% if not loop.last %}<br>{% endif %}{% endfor %}
+                </div>
+            {% endif %}
 
             {% if buttons|length > 0 %}
         </div>
@@ -293,16 +309,18 @@
     {% set groupClasses = cfg.groupClasses|default('') %}
     {% set inputClasses = cfg.inputClasses|default('') %}
     {% set helpClasses = cfg.helpClasses|default('') %}
+    {% set errors = cfg.errors|default([]) %}
+    {% set isInvalid = errors|length > 0 %}
 
     <div class="{{ col }} {{ wrapperClasses }}">
         {% if buttons|length > 0 %}
-        <div class="input-group {{ groupClasses }}">
+        <div class="input-group {{ groupClasses }} {{ isInvalid ? 'has-validation' : '' }}">
             {% endif %}
 
             <div class="form-floating">
                 <input
                         type="{{ type }}"
-                        class="form-control {{ inputClasses }}"
+                        class="form-control {{ inputClasses }} {{ isInvalid ? 'is-invalid' : '' }}"
                         name="{{ cfg.name }}"
                         id="{{ id }}"
                         value="{{ value }}"
@@ -313,6 +331,11 @@
                         {{ ui.attrs(attrs) }}
                 >
                 <label for="{{ id }}">{{ label }}</label>
+                {% if isInvalid %}
+                    <div class="invalid-feedback">
+                        {% for error in errors %}{{ error }}{% if not loop.last %}<br>{% endif %}{% endfor %}
+                    </div>
+                {% endif %}
             </div>
 
             {% for btn in buttons %}
@@ -384,15 +407,17 @@
     {% set labelClasses = cfg.labelClasses|default('') %}
     {% set selectClasses = cfg.selectClasses|default('') %}
     {% set helpClasses = cfg.helpClasses|default('') %}
+    {% set errors = cfg.errors|default([]) %}
+    {% set isInvalid = errors|length > 0 %}
 
     <div class="{{ col }} {{ wrapperClasses }}">
-        <div class="input-group {{ groupClasses }}">
+        <div class="input-group {{ groupClasses }} {{ isInvalid ? 'has-validation' : '' }}">
             {% if label %}
                 <span class="input-group-text {{ labelClasses }}">{{ label }}</span>
             {% endif %}
 
             <select
-                    class="form-select {{ selectClasses }}"
+                    class="form-select {{ selectClasses }} {{ isInvalid ? 'is-invalid' : '' }}"
                     name="{{ cfg.name }}"
                     id="{{ id }}"
                     {{ required ? 'required' : '' }}
@@ -421,6 +446,12 @@
             {% for btn in buttons %}
                 {{ ui.renderButton(btn) }}
             {% endfor %}
+
+            {% if isInvalid %}
+                <div class="invalid-feedback">
+                    {% for error in errors %}{{ error }}{% if not loop.last %}<br>{% endif %}{% endfor %}
+                </div>
+            {% endif %}
         </div>
 
         {% if help %}
@@ -459,6 +490,8 @@
     {% set groupClasses = cfg.groupClasses|default('') %}
     {% set selectClasses = cfg.selectClasses|default('') %}
     {% set helpClasses = cfg.helpClasses|default('') %}
+    {% set errors = cfg.errors|default([]) %}
+    {% set isInvalid = errors|length > 0 %}
 
     <div class="{{ col }} {{ wrapperClasses }}">
         {% if label %}
@@ -466,11 +499,11 @@
         {% endif %}
 
         {% if buttons|length > 0 %}
-        <div class="input-group {{ groupClasses }}">
+        <div class="input-group {{ groupClasses }} {{ isInvalid ? 'has-validation' : '' }}">
             {% endif %}
 
             <select
-                    class="form-select {{ selectClasses }}"
+                    class="form-select {{ selectClasses }} {{ isInvalid ? 'is-invalid' : '' }}"
                     name="{{ cfg.name }}"
                     id="{{ id }}"
                     {{ required ? 'required' : '' }}
@@ -499,6 +532,12 @@
             {% for btn in buttons %}
                 {{ ui.renderButton(btn) }}
             {% endfor %}
+
+            {% if isInvalid %}
+                <div class="invalid-feedback">
+                    {% for error in errors %}{{ error }}{% if not loop.last %}<br>{% endif %}{% endfor %}
+                </div>
+            {% endif %}
 
             {% if buttons|length > 0 %}
         </div>
@@ -540,15 +579,17 @@
     {% set groupClasses = cfg.groupClasses|default('') %}
     {% set selectClasses = cfg.selectClasses|default('') %}
     {% set helpClasses = cfg.helpClasses|default('') %}
+    {% set errors = cfg.errors|default([]) %}
+    {% set isInvalid = errors|length > 0 %}
 
     <div class="{{ col }} {{ wrapperClasses }}">
         {% if buttons|length > 0 %}
-        <div class="input-group {{ groupClasses }}">
+        <div class="input-group {{ groupClasses }} {{ isInvalid ? 'has-validation' : '' }}">
             {% endif %}
 
             <div class="form-floating">
                 <select
-                        class="form-select {{ selectClasses }}"
+                        class="form-select {{ selectClasses }} {{ isInvalid ? 'is-invalid' : '' }}"
                         name="{{ cfg.name }}"
                         id="{{ id }}"
                         {{ required ? 'required' : '' }}
@@ -574,6 +615,11 @@
                     {% endfor %}
                 </select>
                 <label for="{{ id }}">{{ label }}</label>
+                {% if isInvalid %}
+                    <div class="invalid-feedback">
+                        {% for error in errors %}{{ error }}{% if not loop.last %}<br>{% endif %}{% endfor %}
+                    </div>
+                {% endif %}
             </div>
 
             {% for btn in buttons %}

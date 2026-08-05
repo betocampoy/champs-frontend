@@ -1,0 +1,117 @@
+{# ============================================================
+   Tema de formulário Symfony que liga form_row()/form_widget() às
+   macros ui.input/ui.select (templates/components/ui/_form.html.twig),
+   trazendo formStyle (prefixed/inline/floating) + erro de validação
+   pros forms Symfony sem precisar reescrever cada template.
+
+   Cobre só os tipos "input único" (text/email/password/number/url/tel/
+   search) e choice/entity de valor único, não-expandido, sem grupos —
+   qualquer outro tipo (checkbox, file, coleção, choice expandido ou
+   múltiplo, choice agrupado) cai automaticamente pro tema configurado
+   em seguida na lista de form_themes (normalmente bootstrap_5_layout),
+   sem precisar de nada especial aqui — é assim que a resolução de
+   blocks do Symfony já funciona.
+
+   Registro (config/packages/twig.yaml):
+     form_themes: ['@ChampsFrontend/form/champs_theme.html.twig', 'bootstrap_5_layout.html.twig']
+   Ou por form, pra pilotar antes de virar padrão global:
+     {% form_theme form '@ChampsFrontend/form/champs_theme.html.twig' %}
+============================================================ #}
+
+{% use 'bootstrap_5_layout.html.twig' with choice_row as bootstrap_choice_row %}
+
+{% block text_row %}
+    {%- import '@ChampsFrontend/components/ui/_form.html.twig' as ui -%}
+    {%- set formStyle = champs_form_style() -%}
+    {%- set errorMessages = [] -%}
+    {%- for error in form.vars.errors -%}
+        {%- set errorMessages = errorMessages|merge([error.message]) -%}
+    {%- endfor -%}
+    {%- set fieldAttr = attr is defined ? form.vars.attr|default({})|merge(attr) : form.vars.attr|default({}) -%}
+    {%- set extraClass = fieldAttr.class|default('') -%}
+    {%- set fieldAttrNoClass = fieldAttr|filter((v, k) => k != 'class') -%}
+    {%- set fieldLabel = label is defined ? label : form.vars.label -%}
+    {%- if fieldLabel is same as(false) -%}
+        {%- set fieldLabel = '' -%}
+    {%- elseif fieldLabel is null -%}
+        {%- set fieldLabel = form.vars.name|humanize -%}
+    {%- endif -%}
+
+    {{ ui.input({
+        style: formStyle,
+        type: inputType|default('text'),
+        name: form.vars.full_name,
+        id: form.vars.id,
+        label: fieldLabel,
+        value: form.vars.value,
+        placeholder: fieldAttr.placeholder|default(''),
+        required: form.vars.required,
+        disabled: form.vars.disabled,
+        inputClasses: extraClass,
+        wrapperClasses: 'mb-3',
+        attrs: fieldAttrNoClass,
+        help: help|default(form.vars.help),
+        errors: errorMessages,
+    }) }}
+{% endblock %}
+
+{% block email_row %}{% set inputType = 'email' %}{{ block('text_row') }}{% endblock %}
+{% block password_row %}{% set inputType = 'password' %}{{ block('text_row') }}{% endblock %}
+{% block number_row %}{% set inputType = 'number' %}{{ block('text_row') }}{% endblock %}
+{% block url_row %}{% set inputType = 'url' %}{{ block('text_row') }}{% endblock %}
+{% block tel_row %}{% set inputType = 'tel' %}{{ block('text_row') }}{% endblock %}
+{% block search_row %}{% set inputType = 'search' %}{{ block('text_row') }}{% endblock %}
+
+{% block choice_row %}
+    {%- if form.vars.expanded or form.vars.multiple -%}
+        {{ block('bootstrap_choice_row') }}
+    {%- else -%}
+        {%- set isGrouped = false -%}
+        {%- for choice in form.vars.choices -%}
+            {%- if choice.label is not defined or choice.value is not defined -%}
+                {%- set isGrouped = true -%}
+            {%- endif -%}
+        {%- endfor -%}
+
+        {%- if isGrouped -%}
+            {{ block('bootstrap_choice_row') }}
+        {%- else -%}
+            {%- import '@ChampsFrontend/components/ui/_form.html.twig' as ui -%}
+            {%- set formStyle = champs_form_style() -%}
+            {%- set errorMessages = [] -%}
+            {%- for error in form.vars.errors -%}
+                {%- set errorMessages = errorMessages|merge([error.message]) -%}
+            {%- endfor -%}
+            {%- set opts = [] -%}
+            {%- for choice in form.vars.choices -%}
+                {%- set opts = opts|merge([{value: choice.value, label: choice.label}]) -%}
+            {%- endfor -%}
+            {%- set fieldLabel = label is defined ? label : form.vars.label -%}
+            {%- if fieldLabel is same as(false) -%}
+                {%- set fieldLabel = '' -%}
+            {%- elseif fieldLabel is null -%}
+                {%- set fieldLabel = form.vars.name|humanize -%}
+            {%- endif -%}
+            {%- set fieldAttr = attr is defined ? form.vars.attr|default({})|merge(attr) : form.vars.attr|default({}) -%}
+            {%- set extraClass = fieldAttr.class|default('') -%}
+            {%- set fieldAttrNoClass = fieldAttr|filter((v, k) => k != 'class') -%}
+
+            {{ ui.select({
+                style: formStyle,
+                name: form.vars.full_name,
+                id: form.vars.id,
+                label: fieldLabel,
+                placeholder: form.vars.placeholder|default(''),
+                selected: form.vars.value,
+                required: form.vars.required,
+                disabled: form.vars.disabled,
+                options: opts,
+                wrapperClasses: 'mb-3',
+                selectClasses: extraClass,
+                attrs: fieldAttrNoClass,
+                help: help|default(form.vars.help),
+                errors: errorMessages,
+            }) }}
+        {%- endif -%}
+    {%- endif -%}
+{% endblock %}
