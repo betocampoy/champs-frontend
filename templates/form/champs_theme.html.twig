@@ -36,6 +36,7 @@
     {%- elseif fieldLabel is null -%}
         {%- set fieldLabel = form.vars.name|humanize -%}
     {%- endif -%}
+    {%- set fieldButtons = buttons is defined ? buttons : [] -%}
 
     {{ ui.input({
         style: formStyle,
@@ -52,6 +53,45 @@
         attrs: fieldAttrNoClass,
         help: help|default(form.vars.help),
         errors: errorMessages,
+        buttons: fieldButtons,
+    }) }}
+{% endblock %}
+
+{% block textarea_row %}
+    {%- import '@ChampsFrontend/components/ui/_form.html.twig' as ui -%}
+    {%- set formStyle = champs_form_style() -%}
+    {%- set errorMessages = [] -%}
+    {%- for error in form.vars.errors -%}
+        {%- set errorMessages = errorMessages|merge([error.message]) -%}
+    {%- endfor -%}
+    {%- set fieldAttr = attr is defined ? form.vars.attr|default({})|merge(attr) : form.vars.attr|default({}) -%}
+    {%- set extraClass = fieldAttr.class|default('') -%}
+    {%- set fieldAttrNoClass = fieldAttr|filter((v, k) => k != 'class' and k != 'rows') -%}
+    {%- set fieldLabel = label is defined ? label : form.vars.label -%}
+    {%- if fieldLabel is same as(false) -%}
+        {%- set fieldLabel = '' -%}
+    {%- elseif fieldLabel is null -%}
+        {%- set fieldLabel = form.vars.name|humanize -%}
+    {%- endif -%}
+    {%- set fieldButtons = buttons is defined ? buttons : [] -%}
+
+    {{ ui.textarea({
+        style: formStyle,
+        name: form.vars.full_name,
+        id: form.vars.id,
+        label: fieldLabel,
+        value: form.vars.value,
+        placeholder: fieldAttr.placeholder|default(''),
+        required: form.vars.required,
+        disabled: form.vars.disabled,
+        rows: fieldAttr.rows|default(5),
+        textareaClasses: extraClass,
+        wrapperClasses: 'mb-3',
+        attrs: fieldAttrNoClass,
+        help: help|default(form.vars.help),
+        help_raw: helpRaw|default(false),
+        errors: errorMessages,
+        buttons: fieldButtons,
     }) }}
 {% endblock %}
 

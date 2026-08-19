@@ -691,15 +691,17 @@
     {% set labelClasses = cfg.labelClasses|default('') %}
     {% set textareaClasses = cfg.textareaClasses|default('') %}
     {% set helpClasses = cfg.helpClasses|default('') %}
+    {% set errors = cfg.errors|default([]) %}
+    {% set isInvalid = errors|length > 0 %}
 
     <div class="{{ col }} {{ wrapperClasses }}">
-        <div class="input-group {{ groupClasses }}">
+        <div class="input-group {{ groupClasses }} {{ isInvalid ? 'has-validation' : '' }}">
             {% if label %}
                 <span class="input-group-text {{ labelClasses }}">{{ label }}</span>
             {% endif %}
 
             <textarea
-                    class="form-control {{ textareaClasses }}"
+                    class="form-control {{ textareaClasses }} {{ isInvalid ? 'is-invalid' : '' }}"
                     name="{{ cfg.name }}"
                     id="{{ id }}"
                     rows="{{ rows }}"
@@ -713,6 +715,12 @@
             {% for btn in buttons %}
                 {{ ui.renderButton(btn) }}
             {% endfor %}
+
+            {% if isInvalid %}
+                <div class="invalid-feedback">
+                    {% for error in errors %}{{ error }}{% if not loop.last %}<br>{% endif %}{% endfor %}
+                </div>
+            {% endif %}
         </div>
 
         {% if help %}
@@ -752,6 +760,8 @@
     {% set groupClasses = cfg.groupClasses|default('') %}
     {% set textareaClasses = cfg.textareaClasses|default('') %}
     {% set helpClasses = cfg.helpClasses|default('') %}
+    {% set errors = cfg.errors|default([]) %}
+    {% set isInvalid = errors|length > 0 %}
 
     <div class="{{ col }} {{ wrapperClasses }}">
         {% if label %}
@@ -759,11 +769,11 @@
         {% endif %}
 
         {% if buttons|length > 0 %}
-        <div class="input-group {{ groupClasses }}">
+        <div class="input-group {{ groupClasses }} {{ isInvalid ? 'has-validation' : '' }}">
             {% endif %}
 
             <textarea
-                    class="form-control {{ textareaClasses }}"
+                    class="form-control {{ textareaClasses }} {{ isInvalid ? 'is-invalid' : '' }}"
                     name="{{ cfg.name }}"
                     id="{{ id }}"
                     rows="{{ rows }}"
@@ -777,6 +787,12 @@
             {% for btn in buttons %}
                 {{ ui.renderButton(btn) }}
             {% endfor %}
+
+            {% if isInvalid %}
+                <div class="invalid-feedback">
+                    {% for error in errors %}{{ error }}{% if not loop.last %}<br>{% endif %}{% endfor %}
+                </div>
+            {% endif %}
 
             {% if buttons|length > 0 %}
         </div>
@@ -818,15 +834,17 @@
     {% set groupClasses = cfg.groupClasses|default('') %}
     {% set textareaClasses = cfg.textareaClasses|default('') %}
     {% set helpClasses = cfg.helpClasses|default('') %}
+    {% set errors = cfg.errors|default([]) %}
+    {% set isInvalid = errors|length > 0 %}
 
     <div class="{{ col }} {{ wrapperClasses }}">
         {% if buttons|length > 0 %}
-        <div class="input-group {{ groupClasses }}">
+        <div class="input-group {{ groupClasses }} {{ isInvalid ? 'has-validation' : '' }}">
             {% endif %}
 
             <div class="form-floating">
                 <textarea
-                        class="form-control {{ textareaClasses }}"
+                        class="form-control {{ textareaClasses }} {{ isInvalid ? 'is-invalid' : '' }}"
                         name="{{ cfg.name }}"
                         id="{{ id }}"
                         rows="{{ rows }}"
@@ -837,6 +855,11 @@
                         {{ ui.attrs(attrs) }}
                 >{{ value }}</textarea>
                 <label for="{{ id }}">{{ label }}</label>
+                {% if isInvalid %}
+                    <div class="invalid-feedback">
+                        {% for error in errors %}{{ error }}{% if not loop.last %}<br>{% endif %}{% endfor %}
+                    </div>
+                {% endif %}
             </div>
 
             {% for btn in buttons %}
