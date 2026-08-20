@@ -1114,10 +1114,41 @@ function buildFetchRequest(route, method, fd, headers = {}) {
         return { finalRoute, fetchOptions };
     }
 
+    // PHP só popula $_POST (e por consequência $request->request) pra
+    // requisições POST de verdade. Pra PUT/PATCH/DELETE, o Symfony
+    // (Request::createFromGlobals()) só lê e faz parse manual do corpo bruto
+    // quando o Content-Type é application/x-www-form-urlencoded — com
+    // multipart/form-data (o que FormData sempre gera) ele cai de volta em
+    // $_POST, que nunca é preenchido fora de um POST real. Sem arquivo no
+    // payload, manda como querystring no corpo (URLSearchParams, que o
+    // fetch() rotula sozinho como x-www-form-urlencoded) pra esses métodos
+    // chegarem populados no backend.
+    if (normalizedMethod !== 'POST' && !formDataHasFile(fd)) {
+        const params = new URLSearchParams();
+
+        for (const [key, value] of fd.entries()) {
+            params.append(key, value);
+        }
+
+        fetchOptions.body = params;
+
+        return { finalRoute, fetchOptions };
+    }
+
     fetchOptions.body = fd;
 
     return { finalRoute, fetchOptions };
 }
+
+function formDataHasFile(fd) {
+    for (const value of fd.values()) {
+        if (typeof File !== 'undefined' && value instanceof File) return true;
+        if (typeof Blob !== 'undefined' && value instanceof Blob) return true;
+    }
+    return false;
+}
+
+const FIELD_ATTR_PREFIX = 'data-champs-ajax-field-';
 
 function buildFormData(triggerEl) {
     const configSource = getAjaxConfigSource(triggerEl);
@@ -1176,13 +1207,13 @@ function buildFormData(triggerEl) {
         }
     }
 
-    for (const [k, v] of Object.entries(configSource.dataset || {})) {
-        if (!k.startsWith('champsAjaxField')) continue;
-        const field = k.replace('champsAjaxField', '');
-        if (!field) continue;
+    for (const attrName of configSource.getAttributeNames?.() || []) {
+        if (!attrName.startsWith(FIELD_ATTR_PREFIX)) continue;
 
-        const name = toSnake(field);
-        const value = v ?? '';
+        const name = attrName.slice(FIELD_ATTR_PREFIX.length);
+        if (!name) continue;
+
+        const value = configSource.getAttribute(attrName) ?? '';
 
         if (withInputs && scopeFieldNames.has(name) && !priorize.has(name)) {
             continue;
@@ -1396,12 +1427,6 @@ function setDisabled(el, v) {
         el.removeAttribute('disabled');
         el.classList.remove('disabled');
     }
-}
-
-function toSnake(str) {
-    return String(str)
-        .replace(/^[A-Z]/, (m) => m.toLowerCase())
-        .replace(/[A-Z]/g, (m) => '_' + m.toLowerCase());
 }
 
 function escapeHtml(s) {
