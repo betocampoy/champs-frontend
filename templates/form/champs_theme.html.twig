@@ -101,6 +101,10 @@
 {% block url_row %}{% set inputType = 'url' %}{{ block('text_row') }}{% endblock %}
 {% block tel_row %}{% set inputType = 'tel' %}{{ block('text_row') }}{% endblock %}
 {% block search_row %}{% set inputType = 'search' %}{{ block('text_row') }}{% endblock %}
+{# ColorType herda de TextType — sem um color_row próprio, a resolução de
+   blocks do Symfony cai no text_row acima (que também serve de fallback
+   pro tipo pai) e o picker nativo (type="color") nunca aparece. #}
+{% block color_row %}{% set inputType = 'color' %}{{ block('text_row') }}{% endblock %}
 
 {% block choice_row %}
     {%- if form.vars.expanded or form.vars.multiple -%}
