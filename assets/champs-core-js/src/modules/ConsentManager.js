@@ -719,7 +719,20 @@ export function initConsentManager(scope = document) {
     root.innerHTML = renderFromTemplate(cfg.templateSel, defaultUIHtml(cfg));
 
     let consent = readStored(storageKey);
-    const valid = isValidConsent(consent, cfg);
+    let valid = isValidConsent(consent, cfg);
+
+    // Nenhuma categoria opcional configurada (todas "necessary") — não há
+    // nada pro usuário decidir, então não faz sentido interromper com um
+    // banner. Aceita em silêncio e já persiste, pra não repetir esse
+    // cálculo (e não reabrir o banner) na próxima carga de página.
+    const semEscolhaNenhuma = cfg.categories.length > 0
+        && cfg.categories.every((categoria) => cfg.meta[categoria]?.necessary);
+
+    if (!valid && semEscolhaNenhuma) {
+        consent = buildDefaultState(cfg);
+        writeStored(storageKey, consent);
+        valid = true;
+    }
 
     if (!valid) {
         consent = buildDefaultState(cfg);
