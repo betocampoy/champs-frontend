@@ -414,6 +414,66 @@ class AjaxFormRespose
         return $this->addAction($action);
     }
 
+    /**
+     * Toca um som de feedback (Web Audio, sem áudio pré-gravado) — única
+     * operação de ui-actions sem `target`, pensada pra telas de bipagem
+     * (scanner de código de barras) confirmarem o que aconteceu sem o
+     * operador precisar olhar a tela. `$gain` alto por padrão (0.5, escala
+     * 0–1) de propósito — pra ambiente de operação barulhento, não silêncio
+     * de escritório. `$repeat`/`$gapMs` tocam o mesmo tom N vezes em
+     * sequência (padrão rítmico, ex. "bipe-bipe" de alerta).
+     *
+     * Prefira os presets nomeados (beepOk/beepErro/beepAlerta) — cada um
+     * varia timbre (`waveType`) E/OU ritmo (`repeat`), não só altura do
+     * som, justamente pra dar pra distinguir de ouvido sem olhar a tela.
+     */
+    public function beep(
+        int $frequency = 440,
+        int $durationMs = 150,
+        string $waveType = 'sine',
+        float $gain = 0.5,
+        int $repeat = 1,
+        int $gapMs = 80
+    ): self {
+        return $this->uiActions([
+            [
+                'operation' => 'beep',
+                'frequency' => $frequency,
+                'duration' => $durationMs,
+                'waveType' => $waveType,
+                'gain' => $gain,
+                'repeat' => $repeat,
+                'gap' => $gapMs,
+            ],
+        ]);
+    }
+
+    /** Sucesso — tom único, agudo, curto e limpo. */
+    public function beepOk(): self
+    {
+        return $this->beep(frequency: 1200, durationMs: 120, gain: 0.6);
+    }
+
+    /**
+     * Erro — onda quadrada (timbre de "buzz", áspero), grave e mais longa —
+     * deliberadamente diferente de beepOk() em TIMBRE, não só em altura,
+     * pra ser reconhecível de ouvido mesmo sem prestar atenção na tela.
+     */
+    public function beepErro(): self
+    {
+        return $this->beep(frequency: 220, durationMs: 350, waveType: 'square', gain: 0.6);
+    }
+
+    /**
+     * Alerta — 2 bipes curtos em sequência, tom médio: situação que merece
+     * atenção mas não é um erro de verdade (ex.: item já bipado antes).
+     * Diferente de beepOk()/beepErro() em RITMO, não só em altura/timbre.
+     */
+    public function beepAlerta(): self
+    {
+        return $this->beep(frequency: 700, durationMs: 100, gain: 0.6, repeat: 2, gapMs: 90);
+    }
+
     public function uiAction(
         string $operation,
         string $target,

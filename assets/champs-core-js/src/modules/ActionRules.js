@@ -29,6 +29,77 @@ const boundScopes = new WeakSet();
 const initializedLoadElements = new WeakSet();
 const SUPPORTED_EVENTS = ['change', 'input', 'click', 'blur'];
 
+// Operações que não miram elemento nenhum (sem `target`) — ex. tocar um som
+// de feedback. Checadas ANTES da resolução de `target`/elementos, que pra
+// toda outra operação continua obrigatória.
+const GLOBAL_OPERATIONS = ['beep'];
+let sharedAudioContext = null;
+
+function playTone(frequency, durationMs, waveType, volume) {
+    try {
+        const oscillator = sharedAudioContext.createOscillator();
+        const gainNode = sharedAudioContext.createGain();
+        oscillator.type = waveType;
+        oscillator.frequency.value = frequency;
+        oscillator.connect(gainNode);
+        gainNode.connect(sharedAudioContext.destination);
+        // setValueAtTime > 0 sempre — exponentialRampToValueAtTime não aceita
+        // rampar a partir de 0 (DOMException), por isso volume nunca pode
+        // chegar aqui como 0 (ver clamp em playBeep).
+        gainNode.gain.setValueAtTime(volume, sharedAudioContext.currentTime);
+        oscillator.start();
+        gainNode.gain.exponentialRampToValueAtTime(0.001, sharedAudioContext.currentTime + durationMs / 1000);
+        oscillator.stop(sharedAudioContext.currentTime + durationMs / 1000);
+    } catch (error) {
+        // Web Audio indisponível/instável — silencioso, nunca deveria
+        // quebrar o resto das actions só porque o som falhou.
+    }
+}
+
+/**
+ * `repeat`/`gap` existem pra padrões rítmicos (ex. "alerta" = 2 bipes
+ * curtos) serem reconhecíveis por RITMO, não só por altura do som — mais
+ * fácil de distinguir sem olhar a tela (uso típico: bipagem de código de
+ * barras). `gain` alto por padrão (0.5) de propósito — pensado pra ambiente
+ * de operação barulhento, não pra silêncio de escritório.
+ */
+function playBeep(action) {
+    try {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextClass) {
+            return;
+        }
+
+        sharedAudioContext = sharedAudioContext || new AudioContextClass();
+
+        const frequency = Number(action.frequency) || 440;
+        const durationMs = Number(action.duration ?? action.durationMs) || 150;
+        const waveType = action.waveType || 'sine';
+        const gainValue = Number(action.gain);
+        const volume = Number.isFinite(gainValue) && gainValue > 0 ? Math.min(gainValue, 1) : 0.5;
+        const repeat = Math.max(1, Number(action.repeat) || 1);
+        const gapMs = Number(action.gap ?? action.gapMs) || 80;
+
+        for (let i = 0; i < repeat; i++) {
+            const startDelayMs = i * (durationMs + gapMs);
+            setTimeout(() => playTone(frequency, durationMs, waveType, volume), startDelayMs);
+        }
+    } catch (error) {
+        // idem playTone — nunca deveria quebrar o resto das actions.
+    }
+}
+
+function applyGlobalOperation(action) {
+    switch (action.operation) {
+        case 'beep':
+            playBeep(action);
+            break;
+
+        default:
+            console.warn('[Champs ActionRules] operação global desconhecida:', action.operation, action);
+    }
+}
+
 function getPageRegistry() {
     return window.ChampsPageActions || {};
 }
@@ -306,7 +377,16 @@ function executeAction(action, context) {
         return;
     }
 
-    if (!action.operation || !action.target) {
+    if (!action.operation) {
+        return;
+    }
+
+    if (GLOBAL_OPERATIONS.includes(action.operation)) {
+        applyGlobalOperation(action);
+        return;
+    }
+
+    if (!action.target) {
         return;
     }
 
