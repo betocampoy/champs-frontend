@@ -425,7 +425,9 @@
                     {{ ui.attrs(attrs) }}
             >
                 {% if placeholder %}
-                    <option value="" disabled selected
+                    <option value=""
+                            {{ required ? 'disabled' : '' }}
+                            {{ (selected is empty or selected is null) ? 'selected' : '' }}
                     >{{ placeholder }}</option>
                 {% endif %}
 
@@ -511,7 +513,9 @@
                     {{ ui.attrs(attrs) }}
             >
                 {% if placeholder %}
-                    <option value="" disabled selected
+                    <option value=""
+                            {{ required ? 'disabled' : '' }}
+                            {{ (selected is empty or selected is null) ? 'selected' : '' }}
                     >{{ placeholder }}</option>
                 {% endif %}
 
@@ -597,7 +601,9 @@
                         {{ ui.attrs(attrs) }}
                 >
                     {% if placeholder %}
-                        <option value="" disabled selected
+                        <option value=""
+                                {{ required ? 'disabled' : '' }}
+                                {{ (selected is empty or selected is null) ? 'selected' : '' }}
                         >{{ placeholder }}</option>
                     {% endif %}
 
