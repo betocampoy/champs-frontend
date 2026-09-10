@@ -18,7 +18,7 @@
      {% form_theme form '@ChampsFrontend/form/champs_theme.html.twig' %}
 ============================================================ #}
 
-{% use 'bootstrap_5_layout.html.twig' with choice_row as bootstrap_choice_row %}
+{% use 'bootstrap_5_layout.html.twig' with choice_row as bootstrap_choice_row, date_row as bootstrap_date_row %}
 
 {% block text_row %}
     {%- import '@ChampsFrontend/components/ui/_form.html.twig' as ui -%}
@@ -105,6 +105,26 @@
    blocks do Symfony cai no text_row acima (que também serve de fallback
    pro tipo pai) e o picker nativo (type="color") nunca aparece. #}
 {% block color_row %}{% set inputType = 'color' %}{{ block('text_row') }}{% endblock %}
+
+{# DateType/TimeType/DateTimeType com widget=single_text renderizam como
+   um único <input>, igual TextType — só que o Symfony resolve o nome do
+   bloco pelo TIPO do campo (date_row/time_row/datetime_row), não cai
+   automaticamente no text_row como email_row/password_row/etc fazem
+   acima (esses herdam de TextType de verdade; Date/Time/DateTime não).
+   Sem isto, esses campos sempre caíam no date_row do bootstrap_5_layout
+   (importado via `use` acima), que nunca soube nada sobre formStyle —
+   bug real encontrado 2026-09-10. Guardado por widget: só refina quando
+   é single_text (um input só); widget=choice (o default do Symfony pra
+   DateType, vira 3 selects de dia/mês/ano) continua caindo no bootstrap
+   original, nunca cabe no molde de "um input só" do text_row. #}
+{% block date_row %}
+    {%- if form.vars.widget == 'single_text' -%}
+        {%- set inputType = 'date' -%}
+        {{ block('text_row') }}
+    {%- else -%}
+        {{ block('bootstrap_date_row') }}
+    {%- endif -%}
+{% endblock %}
 
 {% block choice_row %}
     {%- if form.vars.expanded or form.vars.multiple -%}
