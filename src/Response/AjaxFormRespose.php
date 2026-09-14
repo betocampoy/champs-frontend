@@ -418,10 +418,18 @@ class AjaxFormRespose
      * Toca um som de feedback (Web Audio, sem áudio pré-gravado) — única
      * operação de ui-actions sem `target`, pensada pra telas de bipagem
      * (scanner de código de barras) confirmarem o que aconteceu sem o
-     * operador precisar olhar a tela. `$gain` alto por padrão (0.5, escala
-     * 0–1) de propósito — pra ambiente de operação barulhento, não silêncio
-     * de escritório. `$repeat`/`$gapMs` tocam o mesmo tom N vezes em
-     * sequência (padrão rítmico, ex. "bipe-bipe" de alerta).
+     * operador precisar olhar a tela. `$gain` no MÁXIMO por padrão (1.0,
+     * escala 0–1) de propósito — 2026-09-15, ajustado a pedido de um
+     * usuário real: o operador NUNCA está do lado do computador (ambiente
+     * de operação, não escritório silencioso), então o padrão anterior
+     * (0.5) soava baixo demais pra ser útil. `Modules/ActionRules.js`
+     * (lado JS) também sustenta o volume cheio pela maior parte da
+     * duração agora, em vez de decair desde o instante zero — o mesmo
+     * `$gain` soa perceptivelmente mais alto com esse ajuste. Acima de
+     * 1.0 (o teto do Web Audio) só aumentando o volume do sistema/
+     * dispositivo, fora do alcance do código. `$repeat`/`$gapMs` tocam o
+     * mesmo tom N vezes em sequência (padrão rítmico, ex. "bipe-bipe" de
+     * alerta).
      *
      * Prefira os presets nomeados (beepOk/beepErro/beepAlerta) — cada um
      * varia timbre (`waveType`) E/OU ritmo (`repeat`), não só altura do
@@ -431,7 +439,7 @@ class AjaxFormRespose
         int $frequency = 440,
         int $durationMs = 150,
         string $waveType = 'sine',
-        float $gain = 0.5,
+        float $gain = 1.0,
         int $repeat = 1,
         int $gapMs = 80
     ): self {
@@ -451,7 +459,7 @@ class AjaxFormRespose
     /** Sucesso — tom único, agudo, curto e limpo. */
     public function beepOk(): self
     {
-        return $this->beep(frequency: 1200, durationMs: 120, gain: 0.6);
+        return $this->beep(frequency: 1200, durationMs: 120, gain: 1.0);
     }
 
     /**
@@ -461,7 +469,7 @@ class AjaxFormRespose
      */
     public function beepErro(): self
     {
-        return $this->beep(frequency: 220, durationMs: 350, waveType: 'square', gain: 0.6);
+        return $this->beep(frequency: 220, durationMs: 350, waveType: 'square', gain: 1.0);
     }
 
     /**
@@ -471,7 +479,7 @@ class AjaxFormRespose
      */
     public function beepAlerta(): self
     {
-        return $this->beep(frequency: 700, durationMs: 100, gain: 0.6, repeat: 2, gapMs: 90);
+        return $this->beep(frequency: 700, durationMs: 100, gain: 1.0, repeat: 2, gapMs: 90);
     }
 
     public function uiAction(

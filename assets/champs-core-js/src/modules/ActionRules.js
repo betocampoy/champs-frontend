@@ -43,13 +43,27 @@ function playTone(frequency, durationMs, waveType, volume) {
         oscillator.frequency.value = frequency;
         oscillator.connect(gainNode);
         gainNode.connect(sharedAudioContext.destination);
+
+        const now = sharedAudioContext.currentTime;
+        const durationSec = durationMs / 1000;
+        // Sustenta o volume CHEIO pela maior parte da duração, só decaindo
+        // num release curto no final — antes, o ramp começava a cair desde
+        // o instante zero (t=0 até o fim), então o som passava a duração
+        // inteira ficando mais baixo, nunca soando no volume configurado de
+        // verdade. Ambiente de operação barulhento (pedido de usuário real,
+        // 2026-09-15: "o operador nunca está do lado do computador") precisa
+        // do pico de volume sustentado, não decaindo desde o começo.
+        const releaseSec = Math.min(0.03, durationSec * 0.3);
+        const sustainUntil = now + Math.max(durationSec - releaseSec, durationSec * 0.5);
+
         // setValueAtTime > 0 sempre — exponentialRampToValueAtTime não aceita
         // rampar a partir de 0 (DOMException), por isso volume nunca pode
         // chegar aqui como 0 (ver clamp em playBeep).
-        gainNode.gain.setValueAtTime(volume, sharedAudioContext.currentTime);
-        oscillator.start();
-        gainNode.gain.exponentialRampToValueAtTime(0.001, sharedAudioContext.currentTime + durationMs / 1000);
-        oscillator.stop(sharedAudioContext.currentTime + durationMs / 1000);
+        gainNode.gain.setValueAtTime(volume, now);
+        gainNode.gain.setValueAtTime(volume, sustainUntil);
+        oscillator.start(now);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, now + durationSec);
+        oscillator.stop(now + durationSec);
     } catch (error) {
         // Web Audio indisponível/instável — silencioso, nunca deveria
         // quebrar o resto das actions só porque o som falhou.
@@ -60,8 +74,9 @@ function playTone(frequency, durationMs, waveType, volume) {
  * `repeat`/`gap` existem pra padrões rítmicos (ex. "alerta" = 2 bipes
  * curtos) serem reconhecíveis por RITMO, não só por altura do som — mais
  * fácil de distinguir sem olhar a tela (uso típico: bipagem de código de
- * barras). `gain` alto por padrão (0.5) de propósito — pensado pra ambiente
- * de operação barulhento, não pra silêncio de escritório.
+ * barras). `gain` no MÁXIMO por padrão (1.0) de propósito — 2026-09-15,
+ * ajustado a pedido de usuário real (ambiente de operação, operador nunca
+ * do lado do computador — 0.5 soava baixo demais pra ser útil).
  */
 function playBeep(action) {
     try {
@@ -76,7 +91,7 @@ function playBeep(action) {
         const durationMs = Number(action.duration ?? action.durationMs) || 150;
         const waveType = action.waveType || 'sine';
         const gainValue = Number(action.gain);
-        const volume = Number.isFinite(gainValue) && gainValue > 0 ? Math.min(gainValue, 1) : 0.5;
+        const volume = Number.isFinite(gainValue) && gainValue > 0 ? Math.min(gainValue, 1) : 1.0;
         const repeat = Math.max(1, Number(action.repeat) || 1);
         const gapMs = Number(action.gap ?? action.gapMs) || 80;
 
