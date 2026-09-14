@@ -32,8 +32,9 @@ const SUPPORTED_EVENTS = ['change', 'input', 'click', 'blur'];
 // Operações que não miram elemento nenhum (sem `target`) — ex. tocar um som
 // de feedback. Checadas ANTES da resolução de `target`/elementos, que pra
 // toda outra operação continua obrigatória.
-const GLOBAL_OPERATIONS = ['beep'];
+const GLOBAL_OPERATIONS = ['beep', 'beep-asset'];
 let sharedAudioContext = null;
+const audioAssetCache = new Map();
 
 function playTone(frequency, durationMs, waveType, volume) {
     try {
@@ -104,10 +105,56 @@ function playBeep(action) {
     }
 }
 
+/**
+ * Toca um áudio PRÉ-GRAVADO (ex. .mp3) em vez do tom sintetizado — cacheia
+ * um `Audio` por URL (evita recarregar o arquivo a cada bipe) e reseta
+ * `currentTime` antes de tocar de novo, inclusive pra repetições rápidas.
+ * `gap` aqui é o intervalo entre o INÍCIO de cada repetição (não conhece a
+ * duração real do arquivo, diferente de playBeep/playTone).
+ */
+function getCachedAudio(url) {
+    if (!audioAssetCache.has(url)) {
+        const audio = new Audio(url);
+        audio.preload = 'auto';
+        audioAssetCache.set(url, audio);
+    }
+
+    return audioAssetCache.get(url);
+}
+
+function playBeepAsset(action) {
+    try {
+        const asset = String(action.asset || '');
+        if (!asset) {
+            return;
+        }
+
+        const repeat = Math.max(1, Number(action.repeat) || 1);
+        const gapMs = Number(action.gap ?? action.gapMs) || 80;
+
+        for (let i = 0; i < repeat; i++) {
+            setTimeout(() => {
+                const audio = getCachedAudio(asset);
+                audio.currentTime = 0;
+                audio.play()?.catch(() => {
+                    // autoplay bloqueado/mídia indisponível — silencioso,
+                    // mesmo espírito de playTone/playBeep.
+                });
+            }, i * gapMs);
+        }
+    } catch (error) {
+        // idem playTone/playBeep.
+    }
+}
+
 function applyGlobalOperation(action) {
     switch (action.operation) {
         case 'beep':
             playBeep(action);
+            break;
+
+        case 'beep-asset':
+            playBeepAsset(action);
             break;
 
         default:

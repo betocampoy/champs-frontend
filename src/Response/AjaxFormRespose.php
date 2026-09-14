@@ -482,6 +482,31 @@ class AjaxFormRespose
         return $this->beep(frequency: 700, durationMs: 100, gain: 1.0, repeat: 2, gapMs: 90);
     }
 
+    /**
+     * Toca um áudio PRÉ-GRAVADO (ex. .mp3) em vez do beep sintetizado —
+     * pra telas que precisam de um som específico (já reconhecido pelo
+     * operador, gravado por alguém, etc.), não um tom gerado por Web
+     * Audio. `$asset` é uma URL pública já resolvida pelo chamador (esta
+     * classe não tem acesso ao container Symfony pra resolver `asset()`
+     * sozinha — mesmo princípio de domPatchReplace() receber `$html` já
+     * pronto). Coexiste com beep()/beepOk()/beepErro()/beepAlerta(): não
+     * substitui nada, cada tela escolhe qual usar. `$repeat`/`$gapMs`
+     * repetem o MESMO áudio N vezes com um intervalo fixo entre o início
+     * de cada repetição (não soma a duração real do arquivo, que esta
+     * classe não conhece).
+     */
+    public function beepCustom(string $asset, int $repeat = 1, int $gapMs = 80): self
+    {
+        return $this->uiActions([
+            [
+                'operation' => 'beep-asset',
+                'asset' => $asset,
+                'repeat' => $repeat,
+                'gap' => $gapMs,
+            ],
+        ]);
+    }
+
     public function uiAction(
         string $operation,
         string $target,
