@@ -994,6 +994,7 @@
     {% set minChars = cfg.minChars is defined ? cfg.minChars : null %}
     {% set perPage = cfg.perPage is defined ? cfg.perPage : null %}
     {% set allowClear = cfg.allowClear is defined ? cfg.allowClear : null %}
+    {% set creatable = cfg.creatable|default(false) %}
     {% set dependsOn = cfg.dependsOn|default({}) %}
     {% set clearOnChange = cfg.clearOnChange|default({}) %}
     {% set dependsOnChanged = cfg.dependsOnChanged|default(null) %}
@@ -1017,6 +1018,7 @@
                     {% if minChars is not null %}data-champs-remote-select-min-chars="{{ minChars }}"{% endif %}
                     {% if perPage is not null %}data-champs-remote-select-per-page="{{ perPage }}"{% endif %}
                     {% if allowClear is not null %}data-champs-remote-select-allow-clear="{{ allowClear ? 'true' : 'false' }}"{% endif %}
+                    {% if creatable %}data-champs-remote-select-creatable="true"{% endif %}
                     {% if dependsOn|length > 0 %}data-champs-remote-select-depends-on="{{ dependsOn|json_encode|e('html_attr') }}"{% endif %}
                     {% if clearOnChange|length > 0 %}data-champs-remote-select-clear-on-change="{{ clearOnChange|json_encode|e('html_attr') }}"{% endif %}
                     {% if dependsOnChanged %}data-champs-remote-select-depends-on-changed="{{ dependsOnChanged }}"{% endif %}
@@ -1076,6 +1078,7 @@
     {% set minChars = cfg.minChars is defined ? cfg.minChars : null %}
     {% set perPage = cfg.perPage is defined ? cfg.perPage : null %}
     {% set allowClear = cfg.allowClear is defined ? cfg.allowClear : null %}
+    {% set creatable = cfg.creatable|default(false) %}
     {% set dependsOn = cfg.dependsOn|default({}) %}
     {% set clearOnChange = cfg.clearOnChange|default({}) %}
     {% set dependsOnChanged = cfg.dependsOnChanged|default(null) %}
@@ -1102,6 +1105,7 @@
                     {% if minChars is not null %}data-champs-remote-select-min-chars="{{ minChars }}"{% endif %}
                     {% if perPage is not null %}data-champs-remote-select-per-page="{{ perPage }}"{% endif %}
                     {% if allowClear is not null %}data-champs-remote-select-allow-clear="{{ allowClear ? 'true' : 'false' }}"{% endif %}
+                    {% if creatable %}data-champs-remote-select-creatable="true"{% endif %}
                     {% if dependsOn|length > 0 %}data-champs-remote-select-depends-on="{{ dependsOn|json_encode|e('html_attr') }}"{% endif %}
                     {% if clearOnChange|length > 0 %}data-champs-remote-select-clear-on-change="{{ clearOnChange|json_encode|e('html_attr') }}"{% endif %}
                     {% if dependsOnChanged %}data-champs-remote-select-depends-on-changed="{{ dependsOnChanged }}"{% endif %}
@@ -1164,6 +1168,7 @@
     {% set minChars = cfg.minChars is defined ? cfg.minChars : null %}
     {% set perPage = cfg.perPage is defined ? cfg.perPage : null %}
     {% set allowClear = cfg.allowClear is defined ? cfg.allowClear : null %}
+    {% set creatable = cfg.creatable|default(false) %}
     {% set dependsOn = cfg.dependsOn|default({}) %}
     {% set clearOnChange = cfg.clearOnChange|default({}) %}
     {% set dependsOnChanged = cfg.dependsOnChanged|default(null) %}
@@ -1187,6 +1192,7 @@
                         {% if minChars is not null %}data-champs-remote-select-min-chars="{{ minChars }}"{% endif %}
                         {% if perPage is not null %}data-champs-remote-select-per-page="{{ perPage }}"{% endif %}
                         {% if allowClear is not null %}data-champs-remote-select-allow-clear="{{ allowClear ? 'true' : 'false' }}"{% endif %}
+                        {% if creatable %}data-champs-remote-select-creatable="true"{% endif %}
                         {% if dependsOn|length > 0 %}data-champs-remote-select-depends-on="{{ dependsOn|json_encode|e('html_attr') }}"{% endif %}
                         {% if clearOnChange|length > 0 %}data-champs-remote-select-clear-on-change="{{ clearOnChange|json_encode|e('html_attr') }}"{% endif %}
                         {% if dependsOnChanged %}data-champs-remote-select-depends-on-changed="{{ dependsOnChanged }}"{% endif %}

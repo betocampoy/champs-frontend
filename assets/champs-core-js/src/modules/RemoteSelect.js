@@ -11,6 +11,12 @@
  *  - data-champs-remote-select-debounce="250"          (opcional, default 250ms)
  *  - data-champs-remote-select-per-page="20"           (opcional, default 20)
  *  - data-champs-remote-select-prefetch-pages="4"      (opcional, default 4)
+ *  - data-champs-remote-select-creatable="true"        (opcional, default false — permite digitar um
+ *                                                        valor que não está na lista de sugestões; o
+ *                                                        value/label do <option> criado é o texto
+ *                                                        digitado, sem chamada nenhuma ao backend pra
+ *                                                        "criar" nada — útil pra campo texto-livre-com-
+ *                                                        sugestão, ex. nome de cliente não cadastrado)
  *
  * Dependências diretas do SELECT remoto:
  *  - data-champs-remote-select-depends-on='{"unidade_id":"[name=\"unidade_id\"]"}'
@@ -307,6 +313,7 @@ function initOneRemoteSelect(selectEl, scope = document) {
     const debounceMs  = parseInt(selectEl.dataset.champsRemoteSelectDebounce || '250', 10);
     const perPage     = parseInt(selectEl.dataset.champsRemoteSelectPerPage || '20', 10);
     const prefetchPages = parseInt(selectEl.dataset.champsRemoteSelectPrefetchPages || '4', 10);
+    const creatable   = (selectEl.dataset.champsRemoteSelectCreatable || 'false') === 'true';
     const dependsOn = safeParseJson(
         selectEl.dataset.champsRemoteSelectDependsOn,
         {},
@@ -412,6 +419,8 @@ function initOneRemoteSelect(selectEl, scope = document) {
         allowEmptyOption: true,
         plugins: allowClear ? ['clear_button'] : [],
         prefresh: false,
+        create: creatable ? (input) => ({ value: input, label: input }) : false,
+        createOnBlur: creatable,
 
         load: debounce(async (query, callback) => {
             try {
