@@ -455,6 +455,29 @@ function initOneRemoteSelect(selectEl, scope = document) {
     // útil pra debug/futuras integrações
     selectEl._champsTomSelect = ts;
 
+    // Resincroniza a UI do TomSelect quando o <select> original tem seu
+    // .value alterado por fora (ex.: AjaxFormRespose::setValue() via
+    // dom-patch, que só faz `element.value = ...` + dispatchEvent(change),
+    // sem saber nada de TomSelect) — sem isto, o texto exibido fica
+    // desatualizado mesmo com o valor real do form já mudado. Roda no MESMO
+    // evento "change" que o próprio TomSelect já dispara quando a mudança
+    // vem dele mesmo — nesse caso ts.getValue() já bate com selectEl.value
+    // e vira no-op, sem loop.
+    selectEl.addEventListener('change', () => {
+        const currentValue = selectEl.value ?? '';
+        if (ts.getValue() === currentValue) return;
+
+        if (!currentValue) {
+            ts.clear(true);
+            return;
+        }
+
+        if (!selectEl.querySelector(`option[value="${CSS.escape(currentValue)}"]`)) {
+            ts.addOption({ value: currentValue, label: currentValue });
+        }
+        ts.setValue(currentValue, true);
+    });
+
     function attachInfiniteScroll() {
         const dropdown = ts.dropdown_content;
         if (!dropdown || dropdown._champsInfiniteAttached) return;

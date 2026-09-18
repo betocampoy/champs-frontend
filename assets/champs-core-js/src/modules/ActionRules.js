@@ -424,7 +424,12 @@ function applyOperationToElement(element, action) {
             break;
 
         case 'focus':
-            if (typeof element.focus === 'function') {
+            // Select remoto (TomSelect) esconde o <select> original —
+            // focar ele direto não foca nada visível pro usuário; o
+            // próprio ts.focus() sabe focar o control input de verdade.
+            if (element._champsTomSelect && typeof element._champsTomSelect.focus === 'function') {
+                element._champsTomSelect.focus();
+            } else if (typeof element.focus === 'function') {
                 element.focus();
             }
             break;
