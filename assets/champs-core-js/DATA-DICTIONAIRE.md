@@ -29,6 +29,20 @@ servem.
 
 ------------------------------------------------------------------------
 
+## Modulo: AjaxPoll
+
+ Atributo                               | Função
+|----------------------------------------|---
+| `data-champs-ajax-poll`                | Ativa a atualização automática; valor = intervalo em ms (mínimo 1000)
+| `data-champs-ajax-poll-immediate`      | `true`: 1ª consulta já ao iniciar (padrão: após o 1º intervalo)
+| `data-champs-ajax-poll-max`            | Para depois de N consultas
+| `data-champs-ajax-poll-pause-hidden`   | `false`: continua com a aba em segundo plano (padrão: pausa)
+| `data-champs-ajax-route`               | URL consultada (mesmo atributo do AjaxForm)
+| `data-champs-ajax-method`              | Método HTTP (padrão **GET** no AjaxPoll)
+| `data-champs-ajax-field-\*`            | Campos extras enviados em cada consulta
+
+------------------------------------------------------------------------
+
 ## Modulo: CheckboxGroup
 
  Atributo                      | Função
@@ -184,8 +198,12 @@ Atributo | Função
 | `champs:masked` | Mask | Disparado após aplicação de máscara
 | `champs:consent:ready` | Consent | Disparado quando consentimento é carregado
 | `champs:consent:changed` | Consent | Disparado quando usuário altera preferências
+| `champs:ajax:start` | AjaxForm | Antes do fetch. `detail.silent = true` em requisições automáticas (AjaxPoll)
 | `champs:ajax:success` | AjaxForm | Disparado após sucesso na requisição
 | `champs:ajax:error` | AjaxForm | Disparado após erro na requisição
+| `champs:ajax:end` | AjaxForm | Sempre ao terminar. `detail.silent` como no start
+| `champs:ajax:poll:start` | AjaxPoll | Polling ligado num elemento (`detail: {el, interval}`)
+| `champs:ajax:poll:stop` | AjaxPoll | Polling encerrado (`detail: {el, reason}`: `removed`, `attribute-removed`, `max`, `manual`)
 | `champs:loader:show` | Loader | Quando loader é exibido
 | `champs:loader:hide` | Loader | Quando loader é ocultado
 | `champs:push:ready` | PushManager | Firebase inicializado com sucesso

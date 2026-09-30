@@ -224,6 +224,8 @@ export function initNavLoader(_scope = document) {
 
     // ✅ Integração com AjaxForm via eventos
     document.addEventListener('champs:ajax:start', (ev) => {
+        // requisição automática (ex.: AjaxPoll) — nunca mostra loader
+        if (ev.detail?.silent) return;
         if (shouldBypassForActiveElement()) return;
 
         const triggerEl = ev.detail?.triggerEl || null;
@@ -271,7 +273,10 @@ export function initNavLoader(_scope = document) {
         acquire();
     });
 
-    document.addEventListener('champs:ajax:end', () => {
+    document.addEventListener('champs:ajax:end', (ev) => {
+        // simétrico ao start: o fim de uma requisição silenciosa não pode
+        // liberar o loader de uma requisição normal que esteja em andamento
+        if (ev.detail?.silent) return;
         nextPaint(() => {
             if (ajaxLocalTargetEl) {
                 hideLoaderFromEl(ajaxLocalTargetEl);

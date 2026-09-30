@@ -9,6 +9,7 @@ import { initValueSync } from "./modules/ValueSync.js";
 import { initLoader } from './modules/Loader.js';
 import { initNavLoader } from './modules/NavLoader.js';
 import { initAjaxForm } from './modules/AjaxForm.js';
+import { initAjaxPoll } from './modules/AjaxPoll.js';
 import { initDatalist } from './modules/DatalistManager.js';
 import { initAutoOpen } from './modules/AutoOpen.js';
 import { initConsentManager } from './modules/ConsentManager.js';
@@ -34,6 +35,7 @@ export function initCore(scope = document) {
     initCopyText(scope);
     initValueSync(scope);
     initAjaxForm(scope);
+    initAjaxPoll(scope); // depois do AjaxForm: usa o handleAjax dele
     initDatalist(scope);
     initConsentManager(scope);
     initPreferenceManager(scope);

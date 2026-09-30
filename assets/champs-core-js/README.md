@@ -58,6 +58,7 @@ Legenda: - ✅ Refatorado (em `src/modules/`) - 🕘 Legado (ainda fora de
 | `CheckboxGroup.js`    | ✅      | Controle de checkboxes em grupo com contadores e soma 
 | `CopyText.js`         | ✅      | Cópia de texto com múltiplos modos e feedback visual 
 | `AjaxForm.js`         | ✅      | Realiza o envio via ajax e manipula a resposta conforme a ação recebida 
+| `AjaxPoll.js`         | ✅      | Atualização automática: repete uma requisição do AjaxForm em intervalo fixo, sem loader nem toast de erro 
 | `AutoOpen.js`         | ✅      | Permite abrir automaticamente elementos que já possua comportamento declarativo 
 | `ConsentManager.js`   | ✅      | Gerencia consentimento de cookies e categorias de rastreamento (LGPD). 
 | `Validate.js`         | ✅      | Validação declarativa (via data-*) de documentos (CPF, CNPJ e IE)
@@ -689,6 +690,139 @@ reload             ✅
 -   Se o backend não retornar JSON válido, é exibida mensagem de erro.
 -   `validation-error`, `redirect` e `reload` interrompem execução
     subsequente.
+
+## 🔹 9. Modo silencioso (`handleAjax(el, { silent: true })`)
+
+Para requisições **automáticas** (não disparadas pelo usuário), como as do
+módulo AjaxPoll (seção abaixo). Chamado só via JS, não existe atributo para ele:
+
+``` js
+window.Champs.AjaxForm.handleAjax(elemento, { silent: true });
+```
+
+| Comportamento | Normal | Silencioso |
+|---|---|---|
+| Loader global | Sim | **Não** (`X-Global-Loader: 0` e `detail.silent = true` em `champs:ajax:start`/`end`, que o NavLoader ignora) |
+| Toast de erro (rede / resposta não-JSON) | Sim | **Não** (o evento `champs:ajax:error` continua disparando) |
+| Desabilita o elemento durante a requisição | Sim | Não |
+| `data-champs-ajax-confirm` / pré-abrir página / fechar modal pai | Sim | Não |
+| Actions da resposta (`dom-patch`, `message`...) | Executa | **Executa** |
+
+
+------------------------------------------------------------------------
+
+# 🔄 Módulo: AjaxPoll
+
+Atualização automática declarativa: repete uma requisição do AjaxForm em
+intervalo fixo e executa as actions da resposta. Para telas que acompanham
+algo que muda no servidor **sem ação do usuário**: status "processando" de um
+job assíncrono, QR code aguardando leitura, caixa de entrada, painel ao vivo.
+
+Reaproveita o pipeline do AjaxForm (mesmos atributos `data-champs-ajax-*`,
+mesmo contrato `{"actions": [...]}` no backend, mesmos eventos
+`champs:ajax:*`), em modo silencioso (AjaxForm, seção 9): sem loader e sem
+toast de erro a cada consulta.
+
+## ✅ Ativação
+
+``` html
+<div id="status-importacao"
+     data-champs-ajax-poll="5000"
+     data-champs-ajax-route="/importacoes/42/status">
+    Processando…
+</div>
+```
+
+## 🔧 Atributos Disponíveis
+
+| Atributo | Obrigatório | Padrão | Função |
+|---|---|---|---|
+| `data-champs-ajax-poll` | ✅ | --- | Intervalo em milissegundos (mínimo 1000) |
+| `data-champs-ajax-route` | ✅ | --- | URL consultada (mesmo atributo do AjaxForm) |
+| `data-champs-ajax-method` | ❌ | `GET` | Método HTTP. O padrão é GET (no AjaxForm é POST) |
+| `data-champs-ajax-field-*` | ❌ | --- | Campos extras enviados em cada consulta (na querystring, por ser GET) |
+| `data-champs-ajax-poll-immediate` | ❌ | `false` | `true` faz a 1ª consulta já ao iniciar, sem esperar o intervalo |
+| `data-champs-ajax-poll-max` | ❌ | sem limite | Para depois de N consultas |
+| `data-champs-ajax-poll-pause-hidden` | ❌ | `true` | Pausa com a aba em segundo plano. `false` continua consultando |
+
+## 📌 Comportamento
+
+-   **Nunca sobrepõe requisições:** a próxima consulta só é agendada quando
+    a anterior termina (`setTimeout` encadeado, não `setInterval`). Servidor
+    lento = consultas mais espaçadas, nunca empilhadas.
+-   **Erro não para o polling:** falha de rede ou resposta inválida é
+    silenciosa, e a próxima consulta segue no intervalo normal.
+-   **Aba em segundo plano pausa;** ao voltar, consulta na hora e retoma.
+-   **Conteúdo dinâmico:** `initCore(scope)` liga elementos novos. O DomPatch
+    e o ModalManager já chamam `initCore` no HTML que inserem, então um
+    polling dentro de um modal ou de um trecho vindo de `dom-patch` começa
+    sozinho. Um elemento nunca é ligado duas vezes.
+
+## ⏹ Como o polling para
+
+| Situação | `reason` no evento |
+|---|---|
+| O elemento sai do DOM (modal fechado, `dom-patch` `replace`/`remove`) | `removed` |
+| O atributo `data-champs-ajax-poll` é removido (ex.: `dom-patch` `attr`) | `attribute-removed` |
+| Atingiu `data-champs-ajax-poll-max` | `max` |
+| `stopAjaxPoll(el)` / `window.Champs.AjaxPoll.stop(el)` | `manual` |
+
+**O backend decide quando parar**: enquanto o trabalho não terminou, responde
+atualizando só o conteúdo; quando termina, responde um `dom-patch` que
+**substitui o elemento** por um HTML sem `data-champs-ajax-poll`:
+
+``` json
+{
+  "actions": [
+    {
+      "type": "dom-patch",
+      "operation": "replace",
+      "target": "#status-importacao",
+      "html": "<div id=\"status-importacao\" class=\"alert alert-success\">Importação concluída.</div>"
+    }
+  ]
+}
+```
+
+Para trocar só um pedaço do conteúdo e continuar consultando, use um
+`dom-patch` num elemento **interno** (ex. `operation: "text"` num `<span>`
+filho), nunca `replace` do próprio elemento do polling com o mesmo HTML
+(isso encerraria o polling atual e iniciaria um novo a cada consulta).
+
+## 🔔 Eventos Disparados
+
+| Evento | `detail` |
+|---|---|
+| `champs:ajax:poll:start` | `{ el, interval }` |
+| `champs:ajax:poll:stop` | `{ el, reason }` (ver tabela acima) |
+
+Cada consulta também dispara os eventos normais do AjaxForm
+(`champs:ajax:start`/`success`/`error`/`end`, com `detail.silent = true`).
+
+## 🧩 API JavaScript
+
+``` js
+import { startAjaxPoll, stopAjaxPoll, stopAllAjaxPolls } from './modules/AjaxPoll.js';
+
+// ou, sem import:
+window.Champs.AjaxPoll.start(el);   // liga um elemento que já tem os atributos
+window.Champs.AjaxPoll.stop(el);
+window.Champs.AjaxPoll.stopAll();
+```
+
+## 🧪 Teste
+
+Seção **AjaxPoll** de `tests/index.html` (backend fake em
+`tests/api/ajax_poll.php`): contador com parada manual, job que termina
+sozinho, erro 500 silencioso com `poll-max`, e polling dentro de modal.
+
+## ⚠️ Cuidados
+
+-   Escolha o intervalo pelo quanto a informação muda: 3–5 s para algo que o
+    usuário está esperando olhando para a tela (QR, caixa de entrada),
+    10–30 s para status de processamento em segundo plano.
+-   Cada aba aberta faz uma requisição por intervalo. A rota consultada deve
+    ser leve (ler estado, não recalcular).
 
 
 ------------------------------------------------------------------------

@@ -108,6 +108,7 @@
                 <li class="nav-item"><a class="nav-link" href="#sec-modals">Modais</a></li>
                 <li class="nav-item"><a class="nav-link" href="#sec-ajax">AJAX</a></li>
                 <li class="nav-item"><a class="nav-link" href="#sec-dom-patch">DomPatch</a></li>
+                <li class="nav-item"><a class="nav-link" href="#sec-ajax-poll">AjaxPoll</a></li>
                 <li class="nav-item"><a class="nav-link" href="#sec-forms">Forms</a></li>
                 <li class="nav-item"><a class="nav-link" href="#sec-remote-select">Remote Select</a></li>
                 <li class="nav-item"><a class="nav-link" href="#sec-validation">Validation</a></li>
@@ -736,6 +737,101 @@
         </div>
     </section>
     <!-- ===== SECTION: FORMS ===== -->
+    <!-- ===== SECTION: AJAX POLL ===== -->
+    <section id="sec-ajax-poll" class="mb-4">
+        <div class="card section-card">
+            <div class="card-body p-4">
+                <div class="section-header mb-2">
+                    <div>
+                        <h2 class="h4 fw-bold mb-1">AjaxPoll</h2>
+                        <p class="section-subtitle">
+                            Atualização automática: <span class="code-badge">data-champs-ajax-poll="ms"</span>
+                            repete o AjaxForm em modo silencioso (sem loader, sem toast de erro).
+                        </p>
+                    </div>
+                    <span class="code-badge">/tests/api/ajax_poll.php</span>
+                </div>
+
+                <hr class="my-3">
+
+                <div id="poll-messages" class="mb-3"></div>
+
+                <div class="row g-3">
+                    <!-- 1. contador sem fim, parado pelo botão -->
+                    <div class="col-12 col-lg-6">
+                        <div class="border rounded p-3 h-100">
+                            <h5 class="fw-semibold mb-2">1. Contador (1s, parar manual)</h5>
+                            <div id="poll-contador"
+                                 data-champs-ajax-poll="1000"
+                                 data-champs-ajax-poll-immediate="true"
+                                 data-champs-ajax-route="/tests/api/ajax_poll.php"
+                                 data-champs-ajax-field-action="contador">
+                                Consultas: <strong id="poll-contador-valor">0</strong>
+                                <div class="small text-muted" id="poll-contador-meta">—</div>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-outline-danger mt-2" id="poll-contador-parar">
+                                Parar
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 2. job que termina sozinho -->
+                    <div class="col-12 col-lg-6">
+                        <div class="border rounded p-3 h-100">
+                            <h5 class="fw-semibold mb-2">2. Job (para quando o backend substitui o elemento)</h5>
+                            <div id="poll-job"
+                                 data-champs-ajax-poll="1000"
+                                 data-champs-ajax-route="/tests/api/ajax_poll.php"
+                                 data-champs-ajax-field-action="job">
+                                <span id="poll-job-status">Aguardando 1ª consulta…</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 3. erro silencioso -->
+                    <div class="col-12 col-lg-6">
+                        <div class="border rounded p-3 h-100">
+                            <h5 class="fw-semibold mb-2">3. Erro 500 alternado (silencioso, continua)</h5>
+                            <div id="poll-erro"
+                                 data-champs-ajax-poll="1000"
+                                 data-champs-ajax-poll-max="4"
+                                 data-champs-ajax-route="/tests/api/ajax_poll.php"
+                                 data-champs-ajax-field-action="erro">
+                                <span id="poll-erro-valor">—</span>
+                            </div>
+                            <div class="small text-muted">Para sozinho após 4 consultas (poll-max).</div>
+                        </div>
+                    </div>
+
+                    <!-- 4. modal -->
+                    <div class="col-12 col-lg-6">
+                        <div class="border rounded p-3 h-100">
+                            <h5 class="fw-semibold mb-2">4. Dentro de modal (para ao fechar)</h5>
+                            <button type="button" class="btn btn-sm btn-outline-primary"
+                                    data-champs-ajax
+                                    data-champs-ajax-route="/tests/api/ajax_poll.php"
+                                    data-champs-ajax-method="GET"
+                                    data-champs-ajax-field-action="abrir-modal">
+                                Abrir modal
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex align-items-center gap-2 mt-3">
+                    <h6 class="fw-semibold mb-0">Eventos champs:ajax:poll:*</h6>
+                    <button type="button" class="btn btn-sm btn-outline-secondary"
+                            data-champs-ajax
+                            data-champs-ajax-route="/tests/api/ajax_poll.php"
+                            data-champs-ajax-field-action="reset">
+                        Zerar contadores
+                    </button>
+                </div>
+                <pre id="poll-event-log" class="bg-light border rounded p-2 small mt-2" style="max-height: 180px; overflow:auto;"></pre>
+            </div>
+        </div>
+    </section>
+
     <section id="sec-forms" class="mb-4">
         <div class="card section-card">
             <div class="card-body p-4">
@@ -1522,6 +1618,27 @@
                 throw e;
             }
         };
+    })();
+</script>
+
+<script>
+    // AjaxPoll: log dos eventos start/stop + botão "Parar" do contador
+    (function () {
+        const pollLog = document.getElementById('poll-event-log');
+        if (!pollLog) return;
+
+        const logPoll = (name, e) => {
+            const el = e.detail?.el;
+            const extra = e.detail?.reason ?? e.detail?.interval ?? '';
+            pollLog.textContent = `[${new Date().toLocaleTimeString()}] ${name} #${el?.id || '?'} ${extra}\n` + pollLog.textContent;
+        };
+
+        document.addEventListener('champs:ajax:poll:start', (e) => logPoll('start', e));
+        document.addEventListener('champs:ajax:poll:stop', (e) => logPoll('stop', e));
+
+        document.getElementById('poll-contador-parar')?.addEventListener('click', () => {
+            window.Champs?.AjaxPoll?.stop(document.getElementById('poll-contador'));
+        });
     })();
 </script>
 

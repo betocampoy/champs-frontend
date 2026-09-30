@@ -99,6 +99,16 @@ import { initActionRules, runUiActions, runActionRules, runNamedActionRules } fr
 //      - múltiplos valores
 //      - arrays no formato campo[]
 //    - demais métodos continuam usando FormData no body normalmente
+//
+// ✅ NOVO: modo silencioso — handleAjax(triggerEl, { silent: true })
+//    - usado por requisições automáticas (ex.: AjaxPoll), não por ação do usuário
+//    - não mostra o loader global (envia X-Global-Loader: 0 e marca
+//      detail.silent=true nos eventos champs:ajax:start/end, que o NavLoader
+//      ignora — sem isso cada requisição automática acenderia o overlay)
+//    - não mostra toast de erro de rede/JSON inválido (os eventos
+//      champs:ajax:error continuam sendo disparados normalmente)
+//    - não desabilita o elemento, não pede confirmação, não fecha modal pai
+//    - as actions da resposta executam normalmente (dom-patch, message, ...)
 
 import Message from './Message.js';
 import { applyValidationError } from './ValidationError.js';
@@ -216,13 +226,16 @@ export function initAjaxForm(scope = document) {
 /*  MAIN                         */
 /* ============================= */
 
-export async function handleAjax(triggerEl) {
+export async function handleAjax(triggerEl, options = {}) {
     if (!triggerEl) return;
 
+    const silent = options.silent === true;
     const configSource = getAjaxConfigSource(triggerEl);
 
-    const wantsPreopen = configSource.hasAttribute('data-champs-open-new-page')
-        || configSource.hasAttribute('data-champs-ajax-open-new-page');
+    const wantsPreopen = !silent && (
+        configSource.hasAttribute('data-champs-open-new-page')
+        || configSource.hasAttribute('data-champs-ajax-open-new-page')
+    );
 
     if (wantsPreopen) {
         const count = Math.max(
@@ -254,12 +267,12 @@ export async function handleAjax(triggerEl) {
         _preopenedPages.set(triggerEl, pages);
     }
 
-    const disableButton = parseBool(configSource.getAttribute('data-champs-ajax-disable-button'), true);
+    const disableButton = !silent && parseBool(configSource.getAttribute('data-champs-ajax-disable-button'), true);
     const reenableButton = parseBool(configSource.getAttribute('data-champs-ajax-reenable-button'), true);
 
-    if (isDisabled(triggerEl) && triggerEl.dataset.champsAjaxDisabledByRequest !== 'true') return;
+    if (!silent && isDisabled(triggerEl) && triggerEl.dataset.champsAjaxDisabledByRequest !== 'true') return;
 
-    const confirmText = configSource.getAttribute('data-champs-ajax-confirm');
+    const confirmText = silent ? null : configSource.getAttribute('data-champs-ajax-confirm');
     if (confirmText) {
         const ok = await ModalManager.confirm(
             {
@@ -292,7 +305,9 @@ export async function handleAjax(triggerEl) {
     let requestMethod = 'POST';
 
     try {
-        await closeParentModalIfNeeded(triggerEl);
+        if (!silent) {
+            await closeParentModalIfNeeded(triggerEl);
+        }
 
         const { fd, route, method } = buildFormData(triggerEl);
         requestRoute = route;
@@ -307,7 +322,7 @@ export async function handleAjax(triggerEl) {
             return;
         }
 
-        const detail = { triggerEl, route, method };
+        const detail = { triggerEl, route, method, silent };
         document.dispatchEvent(new CustomEvent('champs:ajax:start', { detail }));
 
         const fetchHeaders = (() => {
@@ -317,7 +332,7 @@ export async function handleAjax(triggerEl) {
                 !!configSource?.dataset?.champsLoaderTarget ||
                 configSource?.hasAttribute?.('data-champs-loader');
 
-            h['X-Global-Loader'] = hasLocalLoader ? '0' : '1';
+            h['X-Global-Loader'] = (silent || hasLocalLoader) ? '0' : '1';
 
             return h;
         })();
@@ -333,7 +348,9 @@ export async function handleAjax(triggerEl) {
         } else {
             const text = await res.text();
             console.warn('[AjaxForm] Response não é JSON:', text);
-            Message?.show?.('Resposta inválida do servidor.', 'error');
+            if (!silent) {
+                Message?.show?.('Resposta inválida do servidor.', 'error');
+            }
 
             dispatchAjaxEvent('champs:ajax:error', triggerEl, {
                 response: null,
@@ -364,7 +381,9 @@ export async function handleAjax(triggerEl) {
 
     } catch (e) {
         console.error('[AjaxForm] Erro:', e);
-        Message?.show?.('Erro ao processar a requisição.', 'error');
+        if (!silent) {
+            Message?.show?.('Erro ao processar a requisição.', 'error');
+        }
 
         dispatchAjaxEvent('champs:ajax:error', triggerEl, {
             response: null,
@@ -394,6 +413,7 @@ export async function handleAjax(triggerEl) {
                 triggerEl,
                 route: requestRoute,
                 method: requestMethod,
+                silent,
             }
         }));
     }

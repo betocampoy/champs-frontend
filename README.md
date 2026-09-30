@@ -306,6 +306,7 @@ Para documentação detalhada de cada módulo, consulte [`assets/champs-core-js/
 | Módulo | Arquivo | Responsabilidade |
 |---|---|---|
 | `AjaxForm` | `modules/AjaxForm.js` | Submissão AJAX declarativa e pipeline de actions |
+| `AjaxPoll` | `modules/AjaxPoll.js` | Atualização automática (polling) reaproveitando o pipeline do AjaxForm |
 | `DomPatch` | `modules/DomPatch.js` | Manipulação de DOM via actions do backend |
 | `ActionRules` | `modules/ActionRules.js` | Regras condicionais declarativas na UI |
 | `InputSanitize` | `modules/InputSanitize.js` | Normalização de entradas de texto |
@@ -412,6 +413,22 @@ document.addEventListener('champs:ajax:queue:done', (e) => {
     // as actions normais da resposta — dom-patch/custom/message)
 });
 ```
+
+**Atualização automática (polling):**
+
+```html
+<div id="status-importacao"
+     data-champs-ajax-poll="5000"
+     data-champs-ajax-route="/importacoes/42/status">
+    Processando…
+</div>
+```
+
+A cada 5 s faz um GET silencioso (sem loader, sem toast de erro) e executa as
+actions da resposta. Para quando o elemento sai da página: o backend encerra
+devolvendo um `dom-patch` `replace` com um HTML sem `data-champs-ajax-poll`.
+Pausa com a aba em segundo plano e nunca sobrepõe requisições. Detalhes em
+[`assets/champs-core-js/README.md`](assets/champs-core-js/README.md) (seção AjaxPoll).
 
 ---
 
