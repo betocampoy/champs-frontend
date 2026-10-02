@@ -64,6 +64,32 @@ Legenda: - ✅ Refatorado (em `src/modules/`) - 🕘 Legado (ainda fora de
 | `Validate.js`         | ✅      | Validação declarativa (via data-*) de documentos (CPF, CNPJ e IE)
 | `PushManager.js`      | ✅      | Notificações Push via Firebase Cloud Messaging (FCM)
 | `FilePaste.js`        | ✅      | Ctrl+V de imagem (print) num campo vira anexo de um `<input type="file">`, com miniatura
+| `ScrollAnchor.js`     | ✅      | Rolagem de listas tipo chat: abre no item âncora ou no fim, acompanha o fim, não "pula" ao entrar conteúdo em cima
+
+# 📜 ScrollAnchor (✅)
+
+Arquivo: `src/modules/ScrollAnchor.js`
+
+Para containers roláveis cujo conteúdo cresce pelas duas pontas (chat, log,
+timeline) e é trocado por dom-patch/AjaxPoll.
+
+| Onde | Atributo | Efeito |
+|---|---|---|
+| container rolável | `data-champs-scroll="bottom"` | ao aparecer, rola até o alvo do `#hash` da URL (se estiver dentro), senão até o item âncora, senão até o fim |
+| item da lista | `data-champs-scroll-anchor` | onde a lista abre (ex.: 1ª mensagem não lida) |
+
+Depois que o conteúdo muda (MutationObserver no container, inclusive imagem
+terminando de carregar): **se estava no fim, continua no fim**; senão mantém
+na tela o que a pessoa via (não pula quando entra conteúdo em cima, ex.:
+"carregar anteriores"). Os itens precisam de `id` estável — a posição é
+reencontrada pelo id mesmo quando o HTML é trocado inteiro.
+
+```html
+<div style="max-height: 60vh; overflow-y: auto" data-champs-scroll="bottom">
+    <div id="msg-10">...</div>
+    <div id="msg-11" data-champs-scroll-anchor>...</div>
+</div>
+```
 
 # 📋 FilePaste (✅)
 

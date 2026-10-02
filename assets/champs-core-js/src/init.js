@@ -23,6 +23,7 @@ import { initCalc } from "./modules/Calc.js";
 import { initNotificationCenter } from './modules/NotificationCenter.js';
 import { initPushManager } from './modules/PushManager.js';
 import { initFilePaste } from './modules/FilePaste.js';
+import { initScrollAnchor } from './modules/ScrollAnchor.js';
 
 export function initCore(scope = document) {
     initLoader(scope);
@@ -45,6 +46,7 @@ export function initCore(scope = document) {
     initFormSubmitControl(scope);
     initCalc(scope);
     initFilePaste(scope);
+    initScrollAnchor(scope);
 
     initNotificationCenter(scope);
 
