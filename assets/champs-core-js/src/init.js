@@ -22,6 +22,7 @@ import { initFormSubmitControl } from './modules/FormSubmitControl.js';
 import { initCalc } from "./modules/Calc.js";
 import { initNotificationCenter } from './modules/NotificationCenter.js';
 import { initPushManager } from './modules/PushManager.js';
+import { initFilePaste } from './modules/FilePaste.js';
 
 export function initCore(scope = document) {
     initLoader(scope);
@@ -43,6 +44,7 @@ export function initCore(scope = document) {
     initRemoteSelect(scope);
     initFormSubmitControl(scope);
     initCalc(scope);
+    initFilePaste(scope);
 
     initNotificationCenter(scope);
 

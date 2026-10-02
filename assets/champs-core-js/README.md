@@ -63,6 +63,31 @@ Legenda: - ✅ Refatorado (em `src/modules/`) - 🕘 Legado (ainda fora de
 | `ConsentManager.js`   | ✅      | Gerencia consentimento de cookies e categorias de rastreamento (LGPD). 
 | `Validate.js`         | ✅      | Validação declarativa (via data-*) de documentos (CPF, CNPJ e IE)
 | `PushManager.js`      | ✅      | Notificações Push via Firebase Cloud Messaging (FCM)
+| `FilePaste.js`        | ✅      | Ctrl+V de imagem (print) num campo vira anexo de um `<input type="file">`, com miniatura
+
+# 📋 FilePaste (✅)
+
+Arquivo: `src/modules/FilePaste.js`
+
+Colar (Ctrl+V) uma imagem num campo de texto vira o arquivo de um
+`<input type="file">`, sem o usuário salvar o print antes. Texto colado
+continua normal: só imagem é interceptada. O arquivo recebe o nome
+`print-AAAAMMDD-HHMMSS.png`.
+
+| Onde | Atributo | Efeito |
+|---|---|---|
+| campo que recebe o Ctrl+V | `data-champs-paste-file="#input-file"` | imagem colada vai para o input indicado |
+| `<input type="file">` | `data-champs-file-preview="#container"` | miniatura (imagem) ou nome do arquivo + botão remover; vale também para arquivo escolhido na mão |
+| `<input type="file">` | `data-champs-file-remove-label="Remover"` | texto/aria do botão remover |
+
+Evento: `champs:file-pasted` (bubbles, no input file), `detail: { file }`.
+Listeners delegados no `document`: funciona em campos que chegam depois por dom-patch.
+
+```html
+<textarea name="texto" data-champs-paste-file="#anexo"></textarea>
+<input type="file" name="anexo" id="anexo" data-champs-file-preview="#anexo-preview">
+<div id="anexo-preview"></div>
+```
 
 # 🧼 InputSanitize (✅)
 
