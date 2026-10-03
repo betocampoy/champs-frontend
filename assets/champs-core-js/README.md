@@ -65,6 +65,48 @@ Legenda: - ✅ Refatorado (em `src/modules/`) - 🕘 Legado (ainda fora de
 | `PushManager.js`      | ✅      | Notificações Push via Firebase Cloud Messaging (FCM)
 | `FilePaste.js`        | ✅      | Ctrl+V de imagem (print) num campo vira anexo de um `<input type="file">`, com miniatura
 | `ScrollAnchor.js`     | ✅      | Rolagem de listas tipo chat: abre no item âncora ou no fim, acompanha o fim, não "pula" ao entrar conteúdo em cima
+| `Onboarding.js`       | ✅      | Tours guiados de interface (destaque + card por passo), consumindo o bundle `betocampoy/champs-onboarding`
+
+# 🧭 Onboarding (✅)
+
+Arquivo: `src/modules/Onboarding.js`
+
+Front dos tours do bundle [`betocampoy/champs-onboarding`](https://github.com/betocampoy/champs-onboarding)
+(que define os tours, passos e progresso). Só Bootstrap: card `.card`, botões `.btn`,
+spinner `.spinner-border` e variáveis `--bs-*`, então segue o tema e o modo escuro do projeto.
+
+| Onde | Atributo | Efeito |
+|---|---|---|
+| raiz (uma por página) | `data-champs-onboarding` | ativa o módulo |
+| raiz | `data-champs-onboarding-route="app_x"` | rota Symfony atual (obrigatório) |
+| raiz | `data-champs-onboarding-url="/onboarding"` | prefixo dos endpoints (default `/onboarding`) |
+| raiz | `data-champs-onboarding-autostart="false"` | não busca tour ao carregar (default `true`) |
+| raiz | `data-champs-onboarding-labels='{"next":"Next"}'` | textos (JSON): `next`, `back`, `done`, `skip`, `close`, `help`, `of`, `chooseTour`, `noTours`, `otherPage` |
+| elemento destacado | `data-champs-tour="btn-importar"` | âncora do passo (`TourStep.anchor`) |
+| botão de ajuda | `data-champs-onboarding-help` | lista os tours da página (abre direto se houver um só) |
+| botão de ajuda | `data-champs-onboarding-help="slug"` | abre esse tour |
+
+Comportamento:
+
+- Ao carregar, busca o tour da rota (`GET /tour?route=`): retoma um em andamento ou inicia um ainda não visto.
+- **Próximo/Concluir** grava no servidor (`POST /progress` com cabeçalho `X-Champs-Ajax`); **Voltar** é só local.
+- Uma ação por vez: enquanto o servidor não responde, o botão mostra spinner e os outros ficam desabilitados.
+- Passo em outra rota: grava e navega para a `url` do passo; a outra página retoma o tour.
+- Tour obrigatório: sem "Pular" e sem fechar. Teclado: `Esc` pula, setas avançam/voltam.
+- Âncora não encontrada: o passo aparece centralizado (aviso no console).
+- `advanceOnClick`: o clique no próprio elemento destacado avança (o escurecido não bloqueia cliques).
+- 401 (deslogado): desiste em silêncio. O conteúdo do passo é texto (escapado); quebras de linha viram `<br>`.
+- Eventos em `document`: `champs:onboarding:start|step|complete|skip|error` (`detail: {tour, step, status, error}`).
+- API: `ChampsOnboarding.start(slug)`, `ChampsOnboarding.stop()`.
+
+```twig
+<button type="button" class="btn btn-link" data-champs-onboarding-help><i class="bi bi-question-circle"></i></button>
+
+<div class="d-none" data-champs-onboarding
+     data-champs-onboarding-route="{{ app.request.attributes.get('_route') }}"></div>
+
+<a class="btn btn-primary" data-champs-tour="btn-importar">Importar</a>
+```
 
 # 📜 ScrollAnchor (✅)
 

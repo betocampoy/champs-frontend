@@ -212,6 +212,11 @@ Atributo | Função
 | `champs:push:registered` | PushManager | Token registrado no backend
 | `champs:push:message` | PushManager | Mensagem recebida em foreground
 | `champs:push:error` | PushManager | Erro de inicialização ou registro
+| `champs:onboarding:start` | Onboarding | Tour aberto (`detail: {tour, step}`)
+| `champs:onboarding:step` | Onboarding | Passo exibido
+| `champs:onboarding:complete` | Onboarding | Tour concluído
+| `champs:onboarding:skip` | Onboarding | Tour pulado
+| `champs:onboarding:error` | Onboarding | Falha numa chamada (`detail.error`)
 
 ------------------------------------------------------------------------
 

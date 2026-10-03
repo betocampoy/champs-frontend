@@ -24,6 +24,7 @@ import { initNotificationCenter } from './modules/NotificationCenter.js';
 import { initPushManager } from './modules/PushManager.js';
 import { initFilePaste } from './modules/FilePaste.js';
 import { initScrollAnchor } from './modules/ScrollAnchor.js';
+import { initOnboarding } from './modules/Onboarding.js';
 
 export function initCore(scope = document) {
     initLoader(scope);
@@ -53,6 +54,7 @@ export function initCore(scope = document) {
     initTabsPersistence(scope);
     initFormSectionsPersistence(scope);
     initAutoOpen(scope); // por último, porque pode disparar cliques
+    initOnboarding(scope); // depois do AutoOpen: o tour fica por cima de um modal aberto ao carregar
 
     initPushManager(scope); // async — não bloqueia o restante da inicialização
 }
