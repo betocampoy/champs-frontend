@@ -55,6 +55,7 @@ const DEFAULT_LABELS = {
 
 const PREVIEW_PARAM = 'champs_onboarding_preview';
 const PREVIEW_STEP_PARAM = 'champs_onboarding_step';
+const ANCHOR_WAIT_MS = 5000; // quanto esperar uma âncora carregada depois (ajax) antes de desistir
 const PICK_PARAM = 'champs_onboarding_pick';
 const PICK_EXIT_PARAM = 'champs_onboarding_exit';
 
@@ -292,6 +293,7 @@ export default class Onboarding {
         window.removeEventListener('resize', this.onReposition);
         window.removeEventListener('scroll', this.onReposition, true);
         document.removeEventListener('keydown', this.onKeydown);
+        clearInterval(this.anchorRetry);
         this.layer?.remove();
         this.layer = null;
         this.tour = null;
@@ -419,7 +421,7 @@ export default class Onboarding {
      * Âncora = nome do data-champs-tour (texto simples) ou seletor CSS (começa com # . [
      * ou tem espaço, >, =, :, ...). Pega o primeiro elemento visível.
      */
-    findAnchor(step) {
+    findAnchor(step, quiet = false) {
         if (!step.anchor) return null;
 
         let found = [];
@@ -433,8 +435,28 @@ export default class Onboarding {
         }
 
         const el = found.find(isVisible) || null;
-        if (!el) console.warn(`[Onboarding] âncora "${step.anchor}" não encontrada (ou oculta); passo exibido centralizado.`);
+        if (!el && !quiet) console.warn(`[Onboarding] âncora "${step.anchor}" não encontrada (ou oculta); passo exibido centralizado.`);
         return el;
+    }
+
+    /**
+     * Âncora que ainda não existe (conteúdo carregado por ajax, aba ainda não aberta):
+     * tenta de novo por alguns segundos e redesenha o passo quando o elemento aparecer.
+     */
+    waitForAnchor(step, index) {
+        clearInterval(this.anchorRetry);
+        const until = Date.now() + ANCHOR_WAIT_MS;
+
+        this.anchorRetry = setInterval(() => {
+            if (!this.layer || this.index !== index) return clearInterval(this.anchorRetry);
+            if (this.findAnchor(step, true)) {
+                clearInterval(this.anchorRetry);
+                this.render();
+            } else if (Date.now() > until) {
+                clearInterval(this.anchorRetry);
+                this.findAnchor(step); // agora sim avisa no console
+            }
+        }, 300);
     }
 
     render() {
@@ -445,7 +467,8 @@ export default class Onboarding {
         this.unbindAnchorClick?.();
         this.unbindAnchorClick = null;
 
-        const anchor = this.findAnchor(step);
+        const anchor = this.findAnchor(step, true);
+        if (!anchor && step.anchor) this.waitForAnchor(step, this.index); // aparece centralizado e se ajusta quando o elemento surgir
         this.anchor = anchor;
 
         const total = this.tour.steps.length;
@@ -681,22 +704,100 @@ export function bestAnchor(target) {
     const stable = tries.find((s) => isUnique(s, el));
     if (stable) return { anchor: stable, el, quality: 'stable' };
 
-    // Caminho a partir do ancestral mais próximo com id estável (ou do body)
+    // Contém algo estável (ex.: o card que tem #whatsapp-caixa-abas dentro): "div.card:has(#...)"
+    const byContent = hasSelector(el);
+    if (byContent) return { anchor: byContent, el, quality: 'stable' };
+
+    // Classes que só esse elemento tem na página (ex.: "div.painel-filas")
+    const byClass = classSelector(el);
+    if (byClass && isUnique(byClass, el)) return { anchor: byClass, el, quality: 'stable' };
+
+    return { anchor: pathSelector(el), el, quality: 'fragile' };
+}
+
+/** Classes de estado/utilitário do Bootstrap mudam ou se repetem: não servem de âncora. */
+const VOLATILE_CLASS = /^(active|show|showing|collapsed|collapse|collapsing|disabled|open|fade|in|focus|hover|is-.+|has-.+|was-.+|d-.+|[mp][trblxyse]?-(n?\d|auto)|g[xy]?-\d|gap-\d|[wh]-\d+|mw-\d+|mh-\d+|text-.+|bg-.+|border.*|rounded.*|shadow.*|align-.+|justify-.+|flex-.+|order-.+|position-.+|overflow-.+|float-.+|small|fw-.+|fs-\d|lh-.+|opacity-\d+|z-\d|top-\d+|start-\d+|end-\d+|bottom-\d+|translate-.+|visually-hidden.*|champs-onboarding-.+)$/;
+
+function stableClasses(el) {
+    return [...el.classList].filter((c) => !VOLATILE_CLASS.test(c));
+}
+
+/** tag + até 2 classes estáveis (ex.: "div.card"). */
+function classSelector(el) {
+    const classes = stableClasses(el).slice(0, 2).map((c) => `.${CSS.escape(c)}`).join('');
+    return classes ? `${el.tagName.toLowerCase()}${classes}` : null;
+}
+
+/** Marcador estável de um descendente: data-champs-tour, #id ou [name]. */
+function stableMarker(node) {
+    const tour = node.getAttribute('data-champs-tour');
+    if (tour) return `[data-champs-tour="${quoteAttr(tour)}"]`;
+    if (node.id && !AUTO_ID.test(node.id)) return `#${CSS.escape(node.id)}`;
+    if (node.getAttribute('name') && /^(input|select|textarea)$/i.test(node.tagName)) {
+        return `${node.tagName.toLowerCase()}[name="${quoteAttr(node.getAttribute('name'))}"]`;
+    }
+    return null;
+}
+
+let hasSupported = null;
+function supportsHas() {
+    if (hasSupported === null) {
+        try { document.querySelector(':has(*)'); hasSupported = true; } catch { hasSupported = false; }
+    }
+    return hasSupported;
+}
+
+/**
+ * "div.card:has(#whatsapp-caixa-abas)": o elemento identificado pelo conteúdo estável
+ * que ele contém. Só vale se for único (ancestrais também "contêm", então a classe
+ * ou o tag precisam desempatar).
+ */
+function hasSelector(el) {
+    if (!supportsHas()) return null;
+    const base = classSelector(el) || el.tagName.toLowerCase();
+    const markers = [];
+    for (const node of el.querySelectorAll('[data-champs-tour], [id], input[name], select[name], textarea[name]')) {
+        const marker = stableMarker(node);
+        if (marker && !markers.includes(marker)) markers.push(marker);
+        if (markers.length >= 25) break;
+    }
+    // data-champs-tour > #id > [name] (name costuma ser genérico, ex.: hidden "aba")
+    const rank = (m) => (m.startsWith('[data-champs-tour') ? 0 : m.startsWith('#') ? 1 : 2);
+    markers.sort((a, b) => rank(a) - rank(b));
+    for (const marker of markers) {
+        const sel = `${base}:has(${marker})`;
+        if (isUnique(sel, el)) return sel;
+    }
+    return null;
+}
+
+/**
+ * Último recurso: caminho a partir de um ponto fixo (ancestral com data-champs-tour ou #id,
+ * ou o <main>), nunca do <body> — lá entram faixas de personificação, flash etc. que
+ * mudam a posição dos elementos. Usa classe que diferencia dos irmãos antes de nth-of-type.
+ */
+function pathSelector(el) {
     const parts = [];
     let node = el;
     while (node && node !== document.body) {
-        if (node !== el && node.id && !AUTO_ID.test(node.id)) {
-            parts.unshift(`#${CSS.escape(node.id)}`);
-            break;
+        if (node !== el) {
+            const marker = stableMarker(node);
+            if (marker) { parts.unshift(marker); break; }
+            if (node.tagName === 'MAIN' && document.querySelectorAll('main').length === 1) { parts.unshift('main'); break; }
         }
         const t = node.tagName.toLowerCase();
         const siblings = node.parentElement ? [...node.parentElement.children].filter((c) => c.tagName === node.tagName) : [node];
-        parts.unshift(siblings.length > 1 ? `${t}:nth-of-type(${siblings.indexOf(node) + 1})` : t);
+        let seg = t;
+        if (siblings.length > 1) {
+            const own = stableClasses(node).find((c) => siblings.every((s) => s === node || !s.classList.contains(c)));
+            seg = own ? `${t}.${CSS.escape(own)}` : `${t}:nth-of-type(${siblings.indexOf(node) + 1})`;
+        }
+        parts.unshift(seg);
         node = node.parentElement;
     }
     if (node === document.body) parts.unshift('body');
 
-    return { anchor: parts.join(' > '), el, quality: 'fragile' };
+    return parts.join(' > ');
 }
 
 /**

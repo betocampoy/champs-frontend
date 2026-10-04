@@ -101,6 +101,8 @@ Comportamento:
 - **Âncora:** texto simples (`btn-importar`) = `[data-champs-tour="btn-importar"]`; qualquer outra coisa
   (começa com `#` `.` `[`, ou tem espaço, `>`, `=`, `:`) = seletor CSS (`#btn-exportar`,
   `a[href="/app/clientes/grupos"]`). Vale o primeiro elemento **visível** (o menu duplicado no offcanvas não atrapalha).
+  Se a âncora ainda não existe (conteúdo carregado por ajax), o passo abre centralizado e se ajusta quando o
+  elemento aparecer (espera até 5 s).
 - **Âncoras automáticas (desde 1.9.0):** os componentes já saem com `data-champs-tour`, então dá para
   montar tours sem mexer em template:
   `field-<id do campo>` (todo `form_row` do `champs_theme` e as macros `ui.input/select/textarea/checkbox…`),
@@ -112,7 +114,9 @@ Comportamento:
 - **Modo apontar** (`?champs_onboarding_pick=<nonce>`, aberto pelo "Apontar na tela" do admin): destaca o
   elemento sob o mouse, o clique não dispara a ação da tela e devolve a melhor âncora para a aba de origem
   (`postMessage`, mesma origem): `data-champs-tour` > `#id` > `[name]` > `a[href]` > `[data-champs-ajax-route]`
-  > `[aria-label]`/`[title]` > caminho no DOM (marcado como frágil). Com `champs_onboarding_exit=<param do
+  > `[aria-label]`/`[title]` > **pelo conteúdo estável** (`div.card:has(#id-de-dentro)`) > classes únicas
+  > caminho no DOM (marcado como frágil; começa de um `data-champs-tour`, `#id` ou do `<main>`, nunca do
+  `<body>`, onde faixas de personificação e flash mudam as posições). Com `champs_onboarding_exit=<param do
   switch_user>` sai da personificação antes de fechar a aba. `bestAnchor(el)` é exportado.
 - **Modo teste** (botão "Testar tour" do admin): `?champs_onboarding_preview=<slug>` na URL carrega o
   tour por `{url}/admin/tours/preview/<slug>` e roda sem gravar nada (selo "Modo teste" no card, rótulo
