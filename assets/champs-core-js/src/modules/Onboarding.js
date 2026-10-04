@@ -48,7 +48,7 @@ const DEFAULT_LABELS = {
     noTours: 'Não há tours para esta página.',
     otherPage: 'Este passo continua em outra tela do sistema.',
     preview: 'Modo teste: nada é gravado',
-    pickBanner: 'Clique no elemento que o passo deve destacar (Esc cancela).',
+    pickBanner: 'Use a tela normalmente. Ctrl+clique (⌘+clique no Mac) no elemento que o passo deve destacar. Esc cancela.',
     pickCancel: 'Cancelar',
     pickCopy: 'Âncora escolhida (copie para o cadastro do passo):',
 };
@@ -98,6 +98,7 @@ function ensureStyles() {
             border-radius: var(--bs-border-radius-sm, .25rem); transition: all .05s linear;
         }
         .champs-onboarding-pickbox.is-fragile { outline-color: var(--bs-warning, #ffc107); background: rgba(255, 193, 7, .1); }
+        .champs-onboarding-pickbox.is-armed { outline-style: dashed; outline-width: 3px; }
         .champs-onboarding-card .champs-onboarding-counter { font-size: .8rem; }
     `;
     document.head.appendChild(style);
@@ -281,6 +282,9 @@ export default class Onboarding {
 
         window.addEventListener('resize', this.onReposition);
         window.addEventListener('scroll', this.onReposition, true);
+        // modal do Bootstrap anima ao abrir/fechar: reposiciona no fim (e reavalia a âncora se ela sumiu)
+        document.addEventListener('shown.bs.modal', this.onReposition);
+        document.addEventListener('hidden.bs.modal', this.onReposition);
         document.addEventListener('keydown', this.onKeydown);
 
         this.emit('start');
@@ -292,8 +296,11 @@ export default class Onboarding {
         this.unbindAnchorClick = null;
         window.removeEventListener('resize', this.onReposition);
         window.removeEventListener('scroll', this.onReposition, true);
+        document.removeEventListener('shown.bs.modal', this.onReposition);
+        document.removeEventListener('hidden.bs.modal', this.onReposition);
         document.removeEventListener('keydown', this.onKeydown);
         clearInterval(this.anchorRetry);
+        clearTimeout(this.settleTimer);
         this.layer?.remove();
         this.layer = null;
         this.tour = null;
@@ -369,6 +376,11 @@ export default class Onboarding {
 
     handleKey(e) {
         if (!this.layer) return;
+        // digitando num campo (passo com "avança ao clicar" deixa a tela usável): setas/Esc são do campo
+        const t = e.target;
+        if (t instanceof Element && (t.closest('input, textarea, select, [contenteditable=""], [contenteditable="true"]'))) return;
+        // modal aberto: o Esc fecha o modal (Bootstrap), não pula o tour
+        if (e.key === 'Escape' && document.querySelector('.modal.show')) return;
         if (e.key === 'Escape' && !this.tour.mandatory) { e.preventDefault(); this.run(null, () => this.skip()); }
         if (e.key === 'ArrowRight') { e.preventDefault(); this.run(this.layer.querySelector('[data-onb="next"]'), () => this.next()); }
         if (e.key === 'ArrowLeft') { e.preventDefault(); this.run(null, () => this.back()); }
@@ -508,6 +520,9 @@ export default class Onboarding {
             anchor.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' });
         }
         this.position();
+        // elemento dentro de modal/collapse ainda animando: reposiciona quando assentar
+        clearTimeout(this.settleTimer);
+        this.settleTimer = setTimeout(() => this.layer && this.position(), 400);
         this.layer.querySelector('[data-onb="next"]')?.focus({ preventScroll: true });
 
         this.emit('step', { step: this.index });
@@ -545,6 +560,12 @@ export default class Onboarding {
 
     position() {
         if (!this.card) return;
+
+        // a âncora sumiu (ex.: o usuário fechou o modal do passo): volta a esperar por ela
+        if (this.anchor && !isVisible(this.anchor)) {
+            this.render();
+            return;
+        }
 
         const gap = 12;
         const vw = window.innerWidth;
@@ -801,26 +822,53 @@ function pathSelector(el) {
 }
 
 /**
- * Aberto pelo "Apontar na tela" do admin (?champs_onboarding_pick=<nonce>):
- * destaca o elemento sob o mouse e, no clique, devolve a âncora para a aba do
- * admin (postMessage, mesma origem). Com ?champs_onboarding_exit=<param do
- * switch_user>, sai da personificação antes de fechar a aba.
+ * Aberto pelo "Apontar na tela" do admin (?champs_onboarding_pick=<nonce>).
+ *
+ * Clique normal age na tela (expandir filtros, abrir abas, navegar...): o modo
+ * continua ativo na aba (sessionStorage) mesmo se a página recarregar. Ctrl+clique
+ * (Cmd+clique no Mac) escolhe o elemento e devolve a âncora para a aba do admin
+ * (postMessage, mesma origem), junto com a rota da tela onde foi escolhido.
+ * Com ?champs_onboarding_exit=<param do switch_user>, sai da personificação
+ * antes de fechar a aba. Esc cancela.
  */
+const PICK_STORAGE = 'champs-onboarding:pick';
+const PICK_BLOCKED = ['mousedown', 'mouseup', 'pointerdown', 'pointerup', 'auxclick', 'dblclick'];
+
 class AnchorPicker {
-    constructor(nonce, exitParam, labels) {
+    /** Retoma o modo apontar desta aba depois de uma navegação/recarga. */
+    static resume(labels, route) {
+        let saved = null;
+        try { saved = JSON.parse(sessionStorage.getItem(PICK_STORAGE) || 'null'); } catch { saved = null; }
+        if (!saved?.nonce || !window.opener) return false;
+        new AnchorPicker(saved.nonce, saved.exitParam, labels, route).start();
+        return true;
+    }
+
+    constructor(nonce, exitParam, labels, route) {
         this.nonce = nonce;
         this.exitParam = exitParam;
         this.labels = labels;
+        this.route = route;
         this.current = null;
         this.onMove = (e) => this.hover(e);
         this.onClick = (e) => this.pick(e);
-        this.onBlock = (e) => { if (!this.isOwn(e.target)) { e.preventDefault(); e.stopPropagation(); } };
-        this.onKey = (e) => { if (e.key === 'Escape') this.finish(null); };
+        // só o gesto de escolher é bloqueado; o resto chega na página normalmente
+        this.onBlock = (e) => { if (this.isGesture(e) && !this.isOwn(e.target)) { e.preventDefault(); e.stopPropagation(); } };
+        this.onKey = (e) => {
+            if (e.key === 'Escape') { this.finish(null); return; }
+            this.arm(e.ctrlKey || e.metaKey);
+        };
+        this.onKeyUp = (e) => this.arm(!!(e && (e.ctrlKey || e.metaKey)));
+    }
+
+    isGesture(e) {
+        return e.ctrlKey || e.metaKey;
     }
 
     start() {
         ensureStyles();
         const L = this.labels;
+        try { sessionStorage.setItem(PICK_STORAGE, JSON.stringify({ nonce: this.nonce, exitParam: this.exitParam })); } catch { /* sem storage: vale só nesta página */ }
 
         this.bar = document.createElement('div');
         this.bar.className = 'champs-onboarding-pickbar alert alert-primary d-flex align-items-center gap-2 mb-0 rounded-0 py-2';
@@ -838,8 +886,15 @@ class AnchorPicker {
         document.body.append(this.bar, this.box);
         document.addEventListener('mousemove', this.onMove, true);
         document.addEventListener('click', this.onClick, true);
-        ['mousedown', 'mouseup', 'pointerdown', 'pointerup', 'submit', 'dblclick'].forEach((t) => document.addEventListener(t, this.onBlock, true));
+        PICK_BLOCKED.forEach((t) => document.addEventListener(t, this.onBlock, true));
         document.addEventListener('keydown', this.onKey, true);
+        document.addEventListener('keyup', this.onKeyUp, true);
+        window.addEventListener('blur', this.onKeyUp);
+    }
+
+    /** Ctrl/Cmd pressionado: destaque "armado" (o próximo clique escolhe). */
+    arm(on) {
+        this.box?.classList.toggle('is-armed', !!on);
     }
 
     isOwn(node) {
@@ -847,6 +902,7 @@ class AnchorPicker {
     }
 
     hover(e) {
+        this.arm(this.isGesture(e));
         if (this.isOwn(e.target) || !(e.target instanceof Element)) return;
         this.current = bestAnchor(e.target);
         const r = this.current.el.getBoundingClientRect();
@@ -856,7 +912,7 @@ class AnchorPicker {
     }
 
     pick(e) {
-        if (this.isOwn(e.target)) return;
+        if (this.isOwn(e.target) || !this.isGesture(e)) return; // clique normal: segue para a página
         e.preventDefault();
         e.stopPropagation();
         e.stopImmediatePropagation();
@@ -866,12 +922,21 @@ class AnchorPicker {
     async finish(result) {
         document.removeEventListener('mousemove', this.onMove, true);
         document.removeEventListener('click', this.onClick, true);
-        ['mousedown', 'mouseup', 'pointerdown', 'pointerup', 'submit', 'dblclick'].forEach((t) => document.removeEventListener(t, this.onBlock, true));
+        PICK_BLOCKED.forEach((t) => document.removeEventListener(t, this.onBlock, true));
         document.removeEventListener('keydown', this.onKey, true);
+        document.removeEventListener('keyup', this.onKeyUp, true);
+        window.removeEventListener('blur', this.onKeyUp);
+        try { sessionStorage.removeItem(PICK_STORAGE); } catch { /* nada */ }
         this.box.remove();
 
         if (result && window.opener) {
-            window.opener.postMessage({ type: 'champs-onboarding:pick', nonce: this.nonce, anchor: result.anchor, quality: result.quality }, window.location.origin);
+            window.opener.postMessage({
+                type: 'champs-onboarding:pick',
+                nonce: this.nonce,
+                anchor: result.anchor,
+                quality: result.quality,
+                route: this.route,
+            }, window.location.origin);
         }
 
         if (this.exitParam) {
@@ -919,7 +984,9 @@ export function initOnboarding(scope = document) {
 
     const params = new URLSearchParams(window.location.search);
     if (params.get(PICK_PARAM)) {
-        new AnchorPicker(params.get(PICK_PARAM), params.get(PICK_EXIT_PARAM), Onboarding.instance.labels).start();
+        new AnchorPicker(params.get(PICK_PARAM), params.get(PICK_EXIT_PARAM), Onboarding.instance.labels, Onboarding.instance.route).start();
+    } else if (AnchorPicker.resume(Onboarding.instance.labels, Onboarding.instance.route)) {
+        // modo apontar continua depois de navegar/recarregar na mesma aba
     } else if (params.get(PREVIEW_PARAM)) {
         Onboarding.instance.startPreview(params.get(PREVIEW_PARAM), parseInt(params.get(PREVIEW_STEP_PARAM) || '0', 10) || 0);
     } else if (strToBool(root.dataset.champsOnboardingAutostart, true)) {

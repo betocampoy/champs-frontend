@@ -111,8 +111,14 @@ Comportamento:
   `tab-<abas>-<aba>`, `section-<acordeão>-<seção>`, `notification-center`.
   Nome explícito: `tour: 'meu-nome'` no cfg da macro; desligar: `tour: false` (macros) ou
   `row_attr: {'data-champs-tour': false}` (form_row).
-- **Modo apontar** (`?champs_onboarding_pick=<nonce>`, aberto pelo "Apontar na tela" do admin): destaca o
-  elemento sob o mouse, o clique não dispara a ação da tela e devolve a melhor âncora para a aba de origem
+- **Passos em modal/collapse:** o destaque se reposiciona no `shown.bs.modal` e depois que a animação
+  assenta; se a âncora some (modal fechado), o passo volta a esperar. Digitando num campo, as setas e o Esc
+  são do campo; com modal aberto, o Esc fecha o modal (não pula o tour). Padrão: passo "avança ao clicar"
+  no botão que abre o modal + passos seguintes nos campos do modal.
+- **Modo apontar** (`?champs_onboarding_pick=<nonce>`, aberto pelo "Apontar na tela" do admin): clique
+  normal usa a tela (expandir, abrir abas/modais, navegar — o modo continua na aba via `sessionStorage`);
+  **Ctrl+clique** (⌘+clique) escolhe o elemento (destaque tracejado com Ctrl pressionado) e devolve a melhor
+  âncora, com a rota da tela, para a aba de origem
   (`postMessage`, mesma origem): `data-champs-tour` > `#id` > `[name]` > `a[href]` > `[data-champs-ajax-route]`
   > `[aria-label]`/`[title]` > **pelo conteúdo estável** (`div.card:has(#id-de-dentro)`) > classes únicas
   > caminho no DOM (marcado como frágil; começa de um `data-champs-tour`, `#id` ou do `<main>`, nunca do
