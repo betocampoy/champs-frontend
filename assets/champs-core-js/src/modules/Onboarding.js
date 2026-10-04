@@ -51,6 +51,8 @@ const DEFAULT_LABELS = {
     pickBanner: 'Use a tela normalmente. Ctrl+clique (⌘+clique no Mac) no elemento que o passo deve destacar. Esc cancela.',
     pickCancel: 'Cancelar',
     pickCopy: 'Âncora escolhida (copie para o cadastro do passo):',
+    typeToContinue: 'Digite no campo destacado para continuar.',
+    typeExpected: 'Digite "%text%" no campo destacado para continuar.',
 };
 
 const PREVIEW_PARAM = 'champs_onboarding_preview';
@@ -61,6 +63,30 @@ const PICK_EXIT_PARAM = 'champs_onboarding_exit';
 
 /** Nome simples de data-champs-tour (mesma regra do TourStep::ANCHOR_NAME_PATTERN do bundle). */
 const ANCHOR_NAME = /^[A-Za-z0-9_-][A-Za-z0-9_.-]*$/;
+
+/** Campos onde o passo "exige digitar" procura o que o usuário digita. */
+const FIELD_SELECTOR = 'input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]):not([type="button"]):not([type="submit"]), textarea, select, [contenteditable="true"], [contenteditable=""]';
+const PREVIEW_RESUME = 'champs-onboarding:preview';
+
+/** Compara sem maiúscula/acento: "São Paulo" contém "sao". */
+function normalizeText(text) {
+    return String(text).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+}
+
+/** Modo teste sobrevive a um envio de formulário na mesma tela (o preview vem na URL só da 1ª vez). */
+function savePreviewResume(slug, step) {
+    try { sessionStorage.setItem(PREVIEW_RESUME, JSON.stringify({ slug, step })); } catch { /* sem storage */ }
+}
+
+function takePreviewResume() {
+    try {
+        const saved = JSON.parse(sessionStorage.getItem(PREVIEW_RESUME) || 'null');
+        sessionStorage.removeItem(PREVIEW_RESUME);
+        return saved?.slug ? saved : null;
+    } catch {
+        return null;
+    }
+}
 
 function isVisible(el) {
     if (!el.isConnected) return false;
@@ -269,7 +295,11 @@ export default class Onboarding {
     // ------------------------------------------------------------ fluxo
 
     open(tour) {
+        // close() desliga o modo teste (fim de tour); aqui ele precisa sobreviver: startPreview liga antes de abrir
+        const preview = this.preview;
         this.close();
+        this.preview = preview;
+        this.closedModalFor = null;
         this.tour = tour;
         this.index = Math.min(tour.currentStep || 0, tour.steps.length - 1);
 
@@ -294,6 +324,8 @@ export default class Onboarding {
     close() {
         this.unbindAnchorClick?.();
         this.unbindAnchorClick = null;
+        this.unbindInput?.();
+        this.unbindInput = null;
         window.removeEventListener('resize', this.onReposition);
         window.removeEventListener('scroll', this.onReposition, true);
         document.removeEventListener('shown.bs.modal', this.onReposition);
@@ -356,6 +388,7 @@ export default class Onboarding {
         const prev = this.tour.steps[this.index - 1];
         if (prev.route !== this.route) return; // voltar entre telas não é suportado
         this.index--;
+        this.closedModalFor = null; // voltando e avançando de novo, o passo fecha o modal de novo
         this.render();
     }
 
@@ -401,6 +434,7 @@ export default class Onboarding {
         } finally {
             this.busy = false;
             restore(); // se o card foi redesenhado, os botões antigos já saíram da tela
+            this.refreshGate?.();
         }
     }
 
@@ -478,6 +512,14 @@ export default class Onboarding {
         this.lastTour = this.tour.tour;
         this.unbindAnchorClick?.();
         this.unbindAnchorClick = null;
+        this.unbindInput?.();
+        this.unbindInput = null;
+
+        // "Fechar modal ao chegar neste passo": uma vez por entrada no passo
+        if (step.closeModal && this.closedModalFor !== this.index) {
+            this.closedModalFor = this.index;
+            this.closeOpenModals(step);
+        }
 
         const anchor = this.findAnchor(step, true);
         if (!anchor && step.anchor) this.waitForAnchor(step, this.index); // aparece centralizado e se ajusta quando o elemento surgir
@@ -497,6 +539,7 @@ export default class Onboarding {
                         ${this.tour.mandatory ? '' : `<button type="button" class="btn-close ms-2" data-onb="skip" aria-label="${escapeHtml(L.close)}"></button>`}
                     </div>
                     <p class="card-text small mb-3">${escapeHtml(step.content)}</p>
+                    ${step.requireInput && anchor ? `<div class="small text-warning-emphasis mb-2" data-onb-hint><i class="bi bi-keyboard"></i> ${escapeHtml(step.requiredText ? L.typeExpected.replace('%text%', step.requiredText) : L.typeToContinue)}</div>` : ''}
                     ${step.helpUrl ? `<p class="mb-3"><a href="${escapeHtml(step.helpUrl)}" target="_blank" rel="noopener" class="small">${escapeHtml(step.helpLabel || L.help)} <i class="bi bi-box-arrow-up-right"></i></a></p>` : ''}
                     <div class="d-flex align-items-center gap-2">
                         <span class="text-body-secondary champs-onboarding-counter me-auto">${this.index + 1} ${escapeHtml(L.of)} ${total}</span>
@@ -515,6 +558,7 @@ export default class Onboarding {
         });
 
         if (anchor && step.advanceOnClick) this.bindAnchorClick(anchor);
+        if (anchor && step.requireInput) this.bindInputGate(anchor, step);
 
         if (anchor) {
             anchor.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' });
@@ -526,6 +570,81 @@ export default class Onboarding {
         this.layer.querySelector('[data-onb="next"]')?.focus({ preventScroll: true });
 
         this.emit('step', { step: this.index });
+    }
+
+    /**
+     * Fecha os modais abertos (como o "X") que não contêm o elemento do passo.
+     * Bootstrap 5 quando disponível; senão, clica no botão de fechar do modal.
+     */
+    closeOpenModals(step) {
+        const target = this.findAnchor(step, true);
+        document.querySelectorAll('.modal.show').forEach((modal) => {
+            if (target && modal.contains(target)) return;
+            const Modal = window.bootstrap?.Modal;
+            if (Modal) {
+                Modal.getOrCreateInstance(modal).hide();
+            } else {
+                modal.querySelector('[data-bs-dismiss="modal"]')?.click();
+            }
+        });
+    }
+
+    /**
+     * requireInput: o usuário digita no campo destacado para o "Próximo" liberar.
+     * A tela fica usável (como no advanceOnClick). Enter com valor válido avança e
+     * deixa o formulário seguir (ex.: enviar a busca): o progresso vai com keepalive
+     * e, no modo teste, o tour é retomado na página que carregar.
+     */
+    bindInputGate(anchor, step) {
+        const field = anchor.matches(FIELD_SELECTOR) ? anchor : anchor.querySelector(FIELD_SELECTOR);
+        if (!field) {
+            console.warn(`[Onboarding] passo "${step.title}": nenhum campo para digitar dentro de "${step.anchor}"; o passo segue sem exigir digitação.`);
+            return;
+        }
+
+        this.layer.style.pointerEvents = 'none';
+        this.card.style.pointerEvents = 'auto';
+
+        const valid = () => {
+            const value = 'value' in field ? String(field.value) : String(field.textContent);
+            if (value.trim() === '') return false;
+            return !step.requiredText || normalizeText(value).includes(normalizeText(step.requiredText));
+        };
+        const refresh = () => {
+            const next = this.layer?.querySelector('[data-onb="next"]');
+            if (next && !this.busy) next.disabled = !valid();
+            this.layer?.querySelector('[data-onb-hint]')?.classList.toggle('text-success', valid());
+        };
+        const onKey = (e) => {
+            if (e.key !== 'Enter' || e.isComposing) return;
+            if (!valid()) { e.preventDefault(); return; } // não envia o formulário sem o que o passo pede
+            const from = this.index;
+            if (this.preview) savePreviewResume(this.tour.tour, from + 1);
+            this.record('next', from, true).catch((err) => this.fail(err));
+            if (this.isLast) {
+                this.emit('complete', { status: 'completed' });
+                this.close();
+                return;
+            }
+            this.index++;
+            // se o Enter enviar o formulário, a próxima página retoma; senão, segue aqui
+            setTimeout(() => this.layer && this.render(), 50);
+        };
+
+        field.addEventListener('input', refresh);
+        field.addEventListener('change', refresh);
+        field.addEventListener('keydown', onKey);
+        this.refreshGate = refresh;
+        refresh();
+        setTimeout(() => field.focus({ preventScroll: true }), 0);
+
+        this.unbindInput = () => {
+            field.removeEventListener('input', refresh);
+            field.removeEventListener('change', refresh);
+            field.removeEventListener('keydown', onKey);
+            this.refreshGate = null;
+            if (this.layer) this.layer.style.pointerEvents = '';
+        };
     }
 
     /**
@@ -983,10 +1102,13 @@ export function initOnboarding(scope = document) {
     window.ChampsOnboarding = Onboarding;
 
     const params = new URLSearchParams(window.location.search);
+    let resume = null;
     if (params.get(PICK_PARAM)) {
         new AnchorPicker(params.get(PICK_PARAM), params.get(PICK_EXIT_PARAM), Onboarding.instance.labels, Onboarding.instance.route).start();
     } else if (AnchorPicker.resume(Onboarding.instance.labels, Onboarding.instance.route)) {
         // modo apontar continua depois de navegar/recarregar na mesma aba
+    } else if (!params.get(PREVIEW_PARAM) && (resume = takePreviewResume())) {
+        Onboarding.instance.startPreview(resume.slug, resume.step);
     } else if (params.get(PREVIEW_PARAM)) {
         Onboarding.instance.startPreview(params.get(PREVIEW_PARAM), parseInt(params.get(PREVIEW_STEP_PARAM) || '0', 10) || 0);
     } else if (strToBool(root.dataset.champsOnboardingAutostart, true)) {

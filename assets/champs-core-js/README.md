@@ -111,6 +111,13 @@ Comportamento:
   `tab-<abas>-<aba>`, `section-<acordeão>-<seção>`, `notification-center`.
   Nome explícito: `tour: 'meu-nome'` no cfg da macro; desligar: `tour: false` (macros) ou
   `row_attr: {'data-champs-tour': false}` (form_row).
+- **Exige digitar** (`step.requireInput`, desde 1.10.0): a tela fica usável e o "Próximo" só libera quando
+  o campo destacado (o próprio input/select/textarea ou o primeiro dentro do elemento) tem texto — e, com
+  `step.requiredText`, quando contém esse texto (sem maiúscula/acento). Enter válido avança e deixa o
+  formulário seguir (ex.: enviar a busca); Enter inválido é barrado. No modo teste, a retomada sobrevive ao
+  envio do formulário (`sessionStorage`). Rótulos `typeToContinue` / `typeExpected` (`%text%`).
+- **Fechar modal ao chegar no passo** (`step.closeModal`): fecha os modais abertos que não contêm o
+  elemento do passo (Bootstrap `Modal.hide()`, ou o botão `[data-bs-dismiss="modal"]`).
 - **Passos em modal/collapse:** o destaque se reposiciona no `shown.bs.modal` e depois que a animação
   assenta; se a âncora some (modal fechado), o passo volta a esperar. Digitando num campo, as setas e o Esc
   são do campo; com modal aberto, o Esc fecha o modal (não pula o tour). Padrão: passo "avança ao clicar"
