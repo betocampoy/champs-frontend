@@ -47,7 +47,11 @@ const DEFAULT_LABELS = {
     chooseTour: 'Escolha um tour',
     noTours: 'Não há tours para esta página.',
     otherPage: 'Este passo continua em outra tela do sistema.',
+    preview: 'Modo teste: nada é gravado',
 };
+
+const PREVIEW_PARAM = 'champs_onboarding_preview';
+const PREVIEW_STEP_PARAM = 'champs_onboarding_step';
 
 const STYLES_ID = 'champs-onboarding-styles';
 const Z_INDEX = 1085; // acima de modal (1055) e tooltip (1080), abaixo de toast (1090)
@@ -107,6 +111,7 @@ export default class Onboarding {
 
         this.tour = null;   // payload do servidor
         this.index = 0;     // posição exibida
+        this.preview = false; // "Testar tour" do admin: não grava progresso
         this.layer = null;
         this.onReposition = () => this.position();
         this.onKeydown = (e) => this.handleKey(e);
@@ -191,7 +196,46 @@ export default class Onboarding {
         }
     }
 
+    /**
+     * "Testar tour" (?champs_onboarding_preview=slug): carrega o tour pelo endpoint
+     * do admin (também ativo/inativo) e roda sem gravar nada no servidor.
+     */
+    async startPreview(slug, step = 0) {
+        try {
+            const data = await this.request(`/admin/tours/preview/${encodeURIComponent(slug)}`);
+            if (!data.tour?.steps?.length) return;
+
+            this.preview = true;
+            const index = Math.min(Math.max(0, step), data.tour.steps.length - 1);
+            if (data.tour.steps[index].route !== this.route) {
+                console.warn(`[Onboarding] modo teste: o passo ${index + 1} é da rota "${data.tour.steps[index].route}", esta tela é "${this.route}".`);
+            }
+            this.open({ ...data.tour, currentStep: index });
+        } catch (e) {
+            this.fail(e);
+        }
+    }
+
+    /** URL de um passo; no modo teste leva o preview e o passo junto. */
+    stepUrl(step, index) {
+        if (!this.preview || !step.url) return step.url;
+        const url = new URL(step.url, window.location.origin);
+        url.searchParams.set(PREVIEW_PARAM, this.tour.tour);
+        url.searchParams.set(PREVIEW_STEP_PARAM, String(index));
+        return url.toString();
+    }
+
     record(action, step, keepalive = false) {
+        if (this.preview) {
+            // simula a resposta do servidor (mesmas regras do OnboardingManager)
+            const last = this.tour.steps.length - 1;
+            const completed = action === 'complete' || (action === 'next' && step >= last);
+            return Promise.resolve({
+                status: action === 'skip' ? 'skipped' : (completed ? 'completed' : 'in_progress'),
+                currentStep: action === 'next' && !completed ? step + 1 : step,
+            });
+        }
+
         return this.request('/progress', {
             method: 'POST',
             body: { tour: this.tour.tour, step, action },
@@ -230,6 +274,7 @@ export default class Onboarding {
         this.layer?.remove();
         this.layer = null;
         this.tour = null;
+        this.preview = false;
     }
 
     get step() {
@@ -249,7 +294,7 @@ export default class Onboarding {
         if (target && target.route !== this.route) {
             try { await this.record('next', from, true); } catch (e) { return this.fail(e); }
             if (target.url) {
-                window.location.href = target.url;
+                window.location.href = this.stepUrl(target, from + 1);
                 await this.waitNavigation(); // spinner continua até a outra página carregar
             } else {
                 this.close();
@@ -288,7 +333,9 @@ export default class Onboarding {
         if (!this.tour || this.tour.mandatory) return;
         const slug = this.tour.tour;
         const step = this.index;
+        const preview = this.preview;
         this.close(); // fecha na hora; o registro vai em segundo plano
+        if (preview) return this.emit('skip', { tour: slug, step, status: 'skipped' });
         try {
             await this.request('/progress', { method: 'POST', body: { tour: slug, step, action: 'skip' } });
             this.emit('skip', { tour: slug, step, status: 'skipped' });
@@ -373,6 +420,7 @@ export default class Onboarding {
             ${anchor ? '<div class="champs-onboarding-spotlight"></div>' : '<div class="champs-onboarding-backdrop"></div>'}
             <div class="card champs-onboarding-card">
                 <div class="card-body">
+                    ${this.preview ? `<div class="badge text-bg-warning mb-2"><i class="bi bi-eye"></i> ${escapeHtml(L.preview)}</div>` : ''}
                     <div class="d-flex justify-content-between align-items-start mb-2">
                         <h6 class="card-title mb-0">${escapeHtml(step.title)}</h6>
                         ${this.tour.mandatory ? '' : `<button type="button" class="btn-close ms-2" data-onb="skip" aria-label="${escapeHtml(L.close)}"></button>`}
@@ -573,7 +621,10 @@ export function initOnboarding(scope = document) {
     Onboarding.instance = new Onboarding(root);
     window.ChampsOnboarding = Onboarding;
 
-    if (strToBool(root.dataset.champsOnboardingAutostart, true)) {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get(PREVIEW_PARAM)) {
+        Onboarding.instance.startPreview(params.get(PREVIEW_PARAM), parseInt(params.get(PREVIEW_STEP_PARAM) || '0', 10) || 0);
+    } else if (strToBool(root.dataset.champsOnboardingAutostart, true)) {
         Onboarding.instance.autostart();
     }
 }

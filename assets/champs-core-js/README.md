@@ -98,6 +98,9 @@ Comportamento:
 - 401 (deslogado): desiste em silêncio. O conteúdo do passo é texto (escapado); quebras de linha viram `<br>`.
 - Eventos em `document`: `champs:onboarding:start|step|complete|skip|error` (`detail: {tour, step, status, error}`).
 - API: `ChampsOnboarding.start(slug)`, `ChampsOnboarding.stop()`.
+- **Modo teste** (botão "Testar tour" do admin): `?champs_onboarding_preview=<slug>` na URL carrega o
+  tour por `{url}/admin/tours/preview/<slug>` e roda sem gravar nada (selo "Modo teste" no card, rótulo
+  `preview` nos labels). Passos em outra tela levam o modo junto (`champs_onboarding_step=<n>`).
 
 ```twig
 <button type="button" class="btn btn-link" data-champs-onboarding-help><i class="bi bi-question-circle"></i></button>
