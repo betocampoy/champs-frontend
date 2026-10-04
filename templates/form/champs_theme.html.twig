@@ -26,7 +26,27 @@
    tradução em vez de texto fixo no FormType.
 ============================================================ #}
 
-{% use 'bootstrap_5_layout.html.twig' with choice_row as bootstrap_choice_row, date_row as bootstrap_date_row %}
+{% use 'bootstrap_5_layout.html.twig' with choice_row as bootstrap_choice_row, date_row as bootstrap_date_row, form_row as bootstrap_form_row, datetime_row as bootstrap_datetime_row, time_row as bootstrap_time_row %}
+
+{# Âncora automática do champs-onboarding (desde v1.9.0): todo campo ganha
+   data-champs-tour="field-<id do campo>" no bloco do row, para os tours
+   destacarem campos sem mexer no template. Nos tipos que vão pras macros ui.*
+   o id já gera a âncora lá (ui.tourAttr); nos que caem no bootstrap entra
+   pelo row_attr. Desligar num campo: row_attr: {'data-champs-tour': false}. #}
+{% block form_row %}
+    {%- set row_attr = row_attr|default({})|merge({'data-champs-tour': row_attr['data-champs-tour'] ?? ('field-' ~ id)}) -%}
+    {{- block('bootstrap_form_row') -}}
+{% endblock %}
+
+{% block datetime_row %}
+    {%- set row_attr = row_attr|default({})|merge({'data-champs-tour': row_attr['data-champs-tour'] ?? ('field-' ~ id)}) -%}
+    {{- block('bootstrap_datetime_row') -}}
+{% endblock %}
+
+{% block time_row %}
+    {%- set row_attr = row_attr|default({})|merge({'data-champs-tour': row_attr['data-champs-tour'] ?? ('field-' ~ id)}) -%}
+    {{- block('bootstrap_time_row') -}}
+{% endblock %}
 
 {% block text_row %}
     {%- import '@ChampsFrontend/components/ui/_form.html.twig' as ui -%}
@@ -146,12 +166,14 @@
         {%- set inputType = 'date' -%}
         {{ block('text_row') }}
     {%- else -%}
+        {%- set row_attr = row_attr|default({})|merge({'data-champs-tour': row_attr['data-champs-tour'] ?? ('field-' ~ id)}) -%}
         {{ block('bootstrap_date_row') }}
     {%- endif -%}
 {% endblock %}
 
 {% block choice_row %}
     {%- if form.vars.expanded or form.vars.multiple -%}
+        {%- set row_attr = row_attr|default({})|merge({'data-champs-tour': row_attr['data-champs-tour'] ?? ('field-' ~ id)}) -%}
         {{ block('bootstrap_choice_row') }}
     {%- else -%}
         {%- set isGrouped = false -%}
@@ -162,7 +184,8 @@
         {%- endfor -%}
 
         {%- if isGrouped -%}
-            {{ block('bootstrap_choice_row') }}
+            {%- set row_attr = row_attr|default({})|merge({'data-champs-tour': row_attr['data-champs-tour'] ?? ('field-' ~ id)}) -%}
+        {{ block('bootstrap_choice_row') }}
         {%- else -%}
             {%- import '@ChampsFrontend/components/ui/_form.html.twig' as ui -%}
             {%- set formStyle = champs_form_style() -%}

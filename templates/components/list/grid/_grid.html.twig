@@ -1,6 +1,6 @@
 {% set itemsId = itemsId|default('model' ~ '-items' ) %}
 
-<div class="row g-3" {% if itemsId %}id="{{ itemsId }}"{% endif %}>
+<div class="row g-3" {% if itemsId %}id="{{ itemsId }}"{% endif %} data-champs-tour="list-content">
         {% for item in items %}
                 <div class="{{ cols|default('col-12') }}">
                         {% include itemTemplate with {

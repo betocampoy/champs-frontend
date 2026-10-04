@@ -23,7 +23,7 @@
         {% set startPage = 1 %}
     {% endif %}
 
-    <nav aria-label="Paginação" class="mt-4">
+    <nav aria-label="Paginação" class="mt-4" data-champs-tour="list-pager">
         <ul class="pagination pagination-sm justify-content-center flex-wrap mb-0">
             <li class="page-item {{ not pager.hasPreviousPage ? 'disabled' : '' }}">
                 {% if pager.hasPreviousPage %}

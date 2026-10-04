@@ -16,7 +16,9 @@
 >
     {% endif %}
 
-    <div class="card h-100 {{ class|default('') }}">
+    {# âncora do champs-onboarding: tour (explícito) ou card-<wrapperId> #}
+    {% set cardTour = tour is defined ? tour : ((wrapperId is defined and wrapperId) ? 'card-' ~ wrapperId : null) %}
+    <div class="card h-100 {{ class|default('') }}"{% if cardTour %} data-champs-tour="{{ cardTour }}"{% endif %}>
         {% if header is defined and header %}
             <div class="card-header">
                 {{ header|raw }}

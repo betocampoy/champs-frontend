@@ -1,15 +1,17 @@
+{# Âncoras do champs-onboarding: <tourPrefix>-title/-counter/-view-toggle/-actions (tourPrefix default 'page') #}
+{% set tourPrefix = tourPrefix|default('page') %}
 <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
     <div>
-        <h4 class="mb-1">{{ title|default('Listagem') }}</h4>
+        <h4 class="mb-1" data-champs-tour="{{ tourPrefix }}-title">{{ title|default('Listagem') }}</h4>
 
         {% if subtitle is defined and subtitle %}
             <div class="text-muted small">{{ subtitle|raw }}</div>
         {% endif %}
     </div>
 
-    <div class="d-flex flex-wrap align-items-center gap-2 ms-md-auto">
+    <div class="d-flex flex-wrap align-items-center gap-2 ms-md-auto" data-champs-tour="{{ tourPrefix }}-actions">
         {% if counter is defined %}
-            <span class="badge rounded-pill text-bg-secondary">
+            <span class="badge rounded-pill text-bg-secondary" data-champs-tour="{{ tourPrefix }}-counter">
                 {{ counter }} registro(s)
             </span>
         {% endif %}
@@ -17,7 +19,7 @@
         {% if viewToggleUrl is defined and viewToggleUrl %}
             {% set currentViewMode = viewMode|default('grid') %}
 
-            <div class="btn-group" role="group" aria-label="Modo de visualização">
+            <div class="btn-group" role="group" aria-label="Modo de visualização" data-champs-tour="{{ tourPrefix }}-view-toggle">
                 <a href="{{ viewToggleUrl }}?viewMode=grid{% if queryString is defined and queryString %}&{{ queryString }}{% endif %}"
                    class="btn btn-sm {{ currentViewMode == 'grid' ? 'btn-primary' : 'btn-outline-primary' }}"
                         {% if preferenceKeySufix is defined and preferenceKeySufix %}

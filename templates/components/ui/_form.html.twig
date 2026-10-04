@@ -22,6 +22,21 @@
 
 
 {# ============================================================
+  MACRO: tourAttr(cfg, prefix, fallback)
+  Objetivo: âncora automática do champs-onboarding (data-champs-tour) nos
+  componentes, para os tours destacarem campos/botões sem mexer no template.
+
+  - cfg.tour definido  => usa esse nome (cfg.tour: false desliga)
+  - senão, com fallback => "<prefix>-<fallback>" (ex.: field-cliente_nome)
+  Colchetes viram ponto (cliente[nome] -> cliente.nome).
+============================================================ #}
+{% macro tourAttr(cfg, prefix, fallback) %}
+    {%- set tourName = cfg.tour is defined ? cfg.tour : (fallback ? prefix ~ '-' ~ fallback : null) -%}
+    {%- if tourName %} data-champs-tour="{{ tourName|replace({'[': '.', ']': ''})|e('html_attr') }}"{% endif -%}
+{% endmacro %}
+
+
+{# ============================================================
   MACRO: button(cfg)
   Objetivo: renderizar botão genérico, sem obrigar data-champs-ajax
 
@@ -52,6 +67,7 @@
             class="{{ classes }}"
             {% if title %}title="{{ title }}"{% endif %}
             {{ ui.attrs(attrs) }}
+            {{- ui.tourAttr(cfg, 'btn', attrs.id ?? null) }}
     >
         {% if icon %}<i class="bi {{ icon }}"></i>{% endif %}
         {{ label }}
@@ -167,7 +183,7 @@
     {% set errors = cfg.errors|default([]) %}
     {% set isInvalid = errors|length > 0 %}
 
-    <div class="{{ col }} {{ wrapperClasses }}">
+    <div class="{{ col }} {{ wrapperClasses }}"{{ ui.tourAttr(cfg, 'field', id) }}>
         <div class="input-group {{ groupClasses }} {{ isInvalid ? 'has-validation' : '' }}">
             {% if label %}
                 <span class="input-group-text {{ labelClasses }}">{{ label }}</span>
@@ -237,7 +253,7 @@
     {% set errors = cfg.errors|default([]) %}
     {% set isInvalid = errors|length > 0 %}
 
-    <div class="{{ col }} {{ wrapperClasses }}">
+    <div class="{{ col }} {{ wrapperClasses }}"{{ ui.tourAttr(cfg, 'field', id) }}>
         {% if label %}
             <label for="{{ id }}" class="form-label">{{ label }}</label>
         {% endif %}
@@ -312,7 +328,7 @@
     {% set errors = cfg.errors|default([]) %}
     {% set isInvalid = errors|length > 0 %}
 
-    <div class="{{ col }} {{ wrapperClasses }}">
+    <div class="{{ col }} {{ wrapperClasses }}"{{ ui.tourAttr(cfg, 'field', id) }}>
         {% if buttons|length > 0 %}
         <div class="input-group {{ groupClasses }} {{ isInvalid ? 'has-validation' : '' }}">
             {% endif %}
@@ -410,7 +426,7 @@
     {% set errors = cfg.errors|default([]) %}
     {% set isInvalid = errors|length > 0 %}
 
-    <div class="{{ col }} {{ wrapperClasses }}">
+    <div class="{{ col }} {{ wrapperClasses }}"{{ ui.tourAttr(cfg, 'field', id) }}>
         <div class="input-group {{ groupClasses }} {{ isInvalid ? 'has-validation' : '' }}">
             {% if label %}
                 <span class="input-group-text {{ labelClasses }}">{{ label }}</span>
@@ -495,7 +511,7 @@
     {% set errors = cfg.errors|default([]) %}
     {% set isInvalid = errors|length > 0 %}
 
-    <div class="{{ col }} {{ wrapperClasses }}">
+    <div class="{{ col }} {{ wrapperClasses }}"{{ ui.tourAttr(cfg, 'field', id) }}>
         {% if label %}
             <label for="{{ id }}" class="form-label">{{ label }}</label>
         {% endif %}
@@ -586,7 +602,7 @@
     {% set errors = cfg.errors|default([]) %}
     {% set isInvalid = errors|length > 0 %}
 
-    <div class="{{ col }} {{ wrapperClasses }}">
+    <div class="{{ col }} {{ wrapperClasses }}"{{ ui.tourAttr(cfg, 'field', id) }}>
         {% if buttons|length > 0 %}
         <div class="input-group {{ groupClasses }} {{ isInvalid ? 'has-validation' : '' }}">
             {% endif %}
@@ -700,7 +716,7 @@
     {% set errors = cfg.errors|default([]) %}
     {% set isInvalid = errors|length > 0 %}
 
-    <div class="{{ col }} {{ wrapperClasses }}">
+    <div class="{{ col }} {{ wrapperClasses }}"{{ ui.tourAttr(cfg, 'field', id) }}>
         <div class="input-group {{ groupClasses }} {{ isInvalid ? 'has-validation' : '' }}">
             {% if label %}
                 <span class="input-group-text {{ labelClasses }}">{{ label }}</span>
@@ -769,7 +785,7 @@
     {% set errors = cfg.errors|default([]) %}
     {% set isInvalid = errors|length > 0 %}
 
-    <div class="{{ col }} {{ wrapperClasses }}">
+    <div class="{{ col }} {{ wrapperClasses }}"{{ ui.tourAttr(cfg, 'field', id) }}>
         {% if label %}
             <label for="{{ id }}" class="form-label">{{ label }}</label>
         {% endif %}
@@ -843,7 +859,7 @@
     {% set errors = cfg.errors|default([]) %}
     {% set isInvalid = errors|length > 0 %}
 
-    <div class="{{ col }} {{ wrapperClasses }}">
+    <div class="{{ col }} {{ wrapperClasses }}"{{ ui.tourAttr(cfg, 'field', id) }}>
         {% if buttons|length > 0 %}
         <div class="input-group {{ groupClasses }} {{ isInvalid ? 'has-validation' : '' }}">
             {% endif %}
@@ -1002,7 +1018,7 @@
     {% set selectedId = cfg.selectedId is defined ? cfg.selectedId : null %}
     {% set selectedLabel = cfg.selectedLabel is defined ? cfg.selectedLabel : null %}
 
-    <div class="{{ col }} {{ wrapperClasses }}">
+    <div class="{{ col }} {{ wrapperClasses }}"{{ ui.tourAttr(cfg, 'field', id) }}>
         <div class="input-group {{ groupClasses }}">
             {% if label %}
                 <span class="input-group-text {{ labelClasses }}">{{ label }}</span>
@@ -1086,7 +1102,7 @@
     {% set selectedId = cfg.selectedId is defined ? cfg.selectedId : null %}
     {% set selectedLabel = cfg.selectedLabel is defined ? cfg.selectedLabel : null %}
 
-    <div class="{{ col }} {{ wrapperClasses }}">
+    <div class="{{ col }} {{ wrapperClasses }}"{{ ui.tourAttr(cfg, 'field', id) }}>
         {% if label %}
             <label for="{{ id }}" class="form-label">{{ label }}</label>
         {% endif %}
@@ -1176,7 +1192,7 @@
     {% set selectedId = cfg.selectedId is defined ? cfg.selectedId : null %}
     {% set selectedLabel = cfg.selectedLabel is defined ? cfg.selectedLabel : null %}
 
-    <div class="{{ col }} {{ wrapperClasses }}">
+    <div class="{{ col }} {{ wrapperClasses }}"{{ ui.tourAttr(cfg, 'field', id) }}>
         {% if buttons|length > 0 %}
         <div class="input-group {{ groupClasses }}">
             {% endif %}
@@ -1249,7 +1265,7 @@
     {% set inputClasses = cfg.inputClasses|default('') %}
     {% set labelClasses = cfg.labelClasses|default('') %}
 
-    <div class="{{ col }} {{ wrapperClasses }}">
+    <div class="{{ col }} {{ wrapperClasses }}"{{ ui.tourAttr(cfg, 'field', id) }}>
         <div class="form-check {{ checkClasses }}">
             <input
                     class="form-check-input {{ inputClasses }}"
@@ -1283,7 +1299,7 @@
     {% set inputClasses = cfg.inputClasses|default('') %}
     {% set labelClasses = cfg.labelClasses|default('') %}
 
-    <div class="{{ col }} {{ wrapperClasses }}">
+    <div class="{{ col }} {{ wrapperClasses }}"{{ ui.tourAttr(cfg, 'field', cfg.name|default(null)) }}>
         {% for opt in options %}
             {% set value = opt.value is defined ? opt.value : '' %}
             {% set label = opt.label is defined ? opt.label : '' %}
@@ -1323,7 +1339,7 @@
     {% set help = cfg.help|default(null) %}
     {% set helpClasses = cfg.helpClasses|default('') %}
 
-    <div class="{{ col }} {{ wrapperClasses }}">
+    <div class="{{ col }} {{ wrapperClasses }}"{{ ui.tourAttr(cfg, 'field', cfg.name|default(null)) }}>
         {% if label %}
             <label class="form-label d-flex justify-content-between align-items-center">
                 {{ label }}
@@ -1491,7 +1507,7 @@
     {% set buttonClasses = cfg.buttonClasses|default('') %}
     {% set bodyClasses = cfg.bodyClasses|default('') %}
 
-    <div class="accordion-item {{ itemClasses }}">
+    <div class="accordion-item {{ itemClasses }}" data-champs-tour="section-{{ parentId }}-{{ key }}">
         <h2 class="accordion-header {{ headerClasses }}" id="{{ headingId }}">
             <button
                     class="accordion-button {{ expanded ? '' : 'collapsed' }} {{ buttonClasses }}"
@@ -1652,6 +1668,7 @@
                 <button
                         class="nav-link {{ active ? 'active' : '' }} {{ disabled ? 'disabled' : '' }} {{ buttonClasses }}"
                         id="{{ btnId }}"
+                        data-champs-tour="tab-{{ id }}-{{ key }}"
                         data-bs-toggle="tab"
                         data-bs-target="#{{ paneId }}"
                         type="button"

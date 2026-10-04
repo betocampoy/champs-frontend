@@ -48,10 +48,24 @@ const DEFAULT_LABELS = {
     noTours: 'Não há tours para esta página.',
     otherPage: 'Este passo continua em outra tela do sistema.',
     preview: 'Modo teste: nada é gravado',
+    pickBanner: 'Clique no elemento que o passo deve destacar (Esc cancela).',
+    pickCancel: 'Cancelar',
+    pickCopy: 'Âncora escolhida (copie para o cadastro do passo):',
 };
 
 const PREVIEW_PARAM = 'champs_onboarding_preview';
 const PREVIEW_STEP_PARAM = 'champs_onboarding_step';
+const PICK_PARAM = 'champs_onboarding_pick';
+const PICK_EXIT_PARAM = 'champs_onboarding_exit';
+
+/** Nome simples de data-champs-tour (mesma regra do TourStep::ANCHOR_NAME_PATTERN do bundle). */
+const ANCHOR_NAME = /^[A-Za-z0-9_-][A-Za-z0-9_.-]*$/;
+
+function isVisible(el) {
+    if (!el.isConnected) return false;
+    const r = el.getBoundingClientRect();
+    return (r.width > 0 || r.height > 0) && getComputedStyle(el).visibility !== 'hidden';
+}
 
 const STYLES_ID = 'champs-onboarding-styles';
 const Z_INDEX = 1085; // acima de modal (1055) e tooltip (1080), abaixo de toast (1090)
@@ -76,6 +90,13 @@ function ensureStyles() {
             transition: top .2s ease, left .2s ease;
         }
         .champs-onboarding-card .card-text { white-space: normal; }
+        .champs-onboarding-pickbar { position: fixed; top: 0; left: 0; right: 0; z-index: ${Z_INDEX + 1}; }
+        .champs-onboarding-pickbox {
+            position: fixed; z-index: ${Z_INDEX}; pointer-events: none;
+            outline: 2px solid var(--bs-primary, #0d6efd); background: rgba(13, 110, 253, .08);
+            border-radius: var(--bs-border-radius-sm, .25rem); transition: all .05s linear;
+        }
+        .champs-onboarding-pickbox.is-fragile { outline-color: var(--bs-warning, #ffc107); background: rgba(255, 193, 7, .1); }
         .champs-onboarding-card .champs-onboarding-counter { font-size: .8rem; }
     `;
     document.head.appendChild(style);
@@ -394,10 +415,25 @@ export default class Onboarding {
 
     // ------------------------------------------------------------ tela
 
+    /**
+     * Âncora = nome do data-champs-tour (texto simples) ou seletor CSS (começa com # . [
+     * ou tem espaço, >, =, :, ...). Pega o primeiro elemento visível.
+     */
     findAnchor(step) {
         if (!step.anchor) return null;
-        const el = document.querySelector(`[data-champs-tour="${CSS.escape(step.anchor)}"]`);
-        if (!el) console.warn(`[Onboarding] âncora "${step.anchor}" não encontrada; passo exibido centralizado.`);
+
+        let found = [];
+        try {
+            found = ANCHOR_NAME.test(step.anchor)
+                ? [...document.querySelectorAll(`[data-champs-tour="${CSS.escape(step.anchor)}"]`)]
+                : [...document.querySelectorAll(step.anchor)];
+        } catch {
+            console.warn(`[Onboarding] seletor inválido "${step.anchor}"; passo exibido centralizado.`);
+            return null;
+        }
+
+        const el = found.find(isVisible) || null;
+        if (!el) console.warn(`[Onboarding] âncora "${step.anchor}" não encontrada (ou oculta); passo exibido centralizado.`);
         return el;
     }
 
@@ -597,6 +633,165 @@ export default class Onboarding {
     }
 }
 
+// ---------------------------------------------------------------- modo apontar
+
+const AUTO_ID = /^\d|\d{4,}|^(ember|react|ui-id|tom-select|ts-|choices-)/i;
+
+function quoteAttr(value) {
+    return String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
+function isUnique(selector, el) {
+    try {
+        const all = document.querySelectorAll(selector);
+        return all.length === 1 && all[0] === el;
+    } catch {
+        return false;
+    }
+}
+
+/**
+ * Melhor âncora para um elemento clicado, da mais estável para a mais frágil:
+ * data-champs-tour (no elemento ou acima) > #id > [name] > a[href] > [data-champs-ajax-route]
+ * > [aria-label] > [title] > caminho no DOM a partir do ancestral com id (frágil).
+ */
+export function bestAnchor(target) {
+    const tagged = target.closest('[data-champs-tour]');
+    if (tagged) return { anchor: tagged.getAttribute('data-champs-tour'), el: tagged, quality: 'stable' };
+
+    const el = target.closest('a, button, input, select, textarea, label, [role="button"], [role="tab"], .btn, .nav-link, .list-group-item, .card, th, h1, h2, h3, h4, h5, h6') || target;
+    const tag = el.tagName.toLowerCase();
+    const tries = [];
+
+    if (el.id && !AUTO_ID.test(el.id)) tries.push(`#${CSS.escape(el.id)}`);
+    if (el.getAttribute('name')) {
+        const byName = `${tag}[name="${quoteAttr(el.getAttribute('name'))}"]`;
+        tries.push(byName);
+        // checkbox do Symfony repete o name num hidden: o type desempata
+        tries.push(el.getAttribute('type') ? `${byName}[type="${quoteAttr(el.getAttribute('type'))}"]` : `${byName}:not([type="hidden"])`);
+    }
+    if (tag === 'label' && el.htmlFor) tries.push(`label[for="${quoteAttr(el.htmlFor)}"]`);
+    const href = el.getAttribute('href');
+    if (tag === 'a' && href && !href.startsWith('javascript:') && href !== '#') tries.push(`a[href="${quoteAttr(href)}"]`);
+    if (el.getAttribute('data-champs-ajax-route')) tries.push(`${tag}[data-champs-ajax-route="${quoteAttr(el.getAttribute('data-champs-ajax-route'))}"]`);
+    if (el.getAttribute('data-bs-target')) tries.push(`${tag}[data-bs-target="${quoteAttr(el.getAttribute('data-bs-target'))}"]`);
+    if (el.getAttribute('aria-label')) tries.push(`${tag}[aria-label="${quoteAttr(el.getAttribute('aria-label'))}"]`);
+    if (el.getAttribute('title')) tries.push(`${tag}[title="${quoteAttr(el.getAttribute('title'))}"]`);
+
+    const stable = tries.find((s) => isUnique(s, el));
+    if (stable) return { anchor: stable, el, quality: 'stable' };
+
+    // Caminho a partir do ancestral mais próximo com id estável (ou do body)
+    const parts = [];
+    let node = el;
+    while (node && node !== document.body) {
+        if (node !== el && node.id && !AUTO_ID.test(node.id)) {
+            parts.unshift(`#${CSS.escape(node.id)}`);
+            break;
+        }
+        const t = node.tagName.toLowerCase();
+        const siblings = node.parentElement ? [...node.parentElement.children].filter((c) => c.tagName === node.tagName) : [node];
+        parts.unshift(siblings.length > 1 ? `${t}:nth-of-type(${siblings.indexOf(node) + 1})` : t);
+        node = node.parentElement;
+    }
+    if (node === document.body) parts.unshift('body');
+
+    return { anchor: parts.join(' > '), el, quality: 'fragile' };
+}
+
+/**
+ * Aberto pelo "Apontar na tela" do admin (?champs_onboarding_pick=<nonce>):
+ * destaca o elemento sob o mouse e, no clique, devolve a âncora para a aba do
+ * admin (postMessage, mesma origem). Com ?champs_onboarding_exit=<param do
+ * switch_user>, sai da personificação antes de fechar a aba.
+ */
+class AnchorPicker {
+    constructor(nonce, exitParam, labels) {
+        this.nonce = nonce;
+        this.exitParam = exitParam;
+        this.labels = labels;
+        this.current = null;
+        this.onMove = (e) => this.hover(e);
+        this.onClick = (e) => this.pick(e);
+        this.onBlock = (e) => { if (!this.isOwn(e.target)) { e.preventDefault(); e.stopPropagation(); } };
+        this.onKey = (e) => { if (e.key === 'Escape') this.finish(null); };
+    }
+
+    start() {
+        ensureStyles();
+        const L = this.labels;
+
+        this.bar = document.createElement('div');
+        this.bar.className = 'champs-onboarding-pickbar alert alert-primary d-flex align-items-center gap-2 mb-0 rounded-0 py-2';
+        this.bar.innerHTML = `
+            <i class="bi bi-cursor"></i>
+            <span class="me-auto small">${escapeHtml(L.pickBanner)}</span>
+            <code class="small text-truncate champs-onboarding-pickvalue" style="max-width: 40vw;"></code>
+            <button type="button" class="btn btn-sm btn-light">${escapeHtml(L.pickCancel)}</button>`;
+        this.bar.querySelector('button').addEventListener('click', () => this.finish(null));
+        this.valueEl = this.bar.querySelector('.champs-onboarding-pickvalue');
+
+        this.box = document.createElement('div');
+        this.box.className = 'champs-onboarding-pickbox';
+
+        document.body.append(this.bar, this.box);
+        document.addEventListener('mousemove', this.onMove, true);
+        document.addEventListener('click', this.onClick, true);
+        ['mousedown', 'mouseup', 'pointerdown', 'pointerup', 'submit', 'dblclick'].forEach((t) => document.addEventListener(t, this.onBlock, true));
+        document.addEventListener('keydown', this.onKey, true);
+    }
+
+    isOwn(node) {
+        return node instanceof Node && (this.bar?.contains(node) || this.box?.contains(node));
+    }
+
+    hover(e) {
+        if (this.isOwn(e.target) || !(e.target instanceof Element)) return;
+        this.current = bestAnchor(e.target);
+        const r = this.current.el.getBoundingClientRect();
+        Object.assign(this.box.style, { top: `${r.top - 3}px`, left: `${r.left - 3}px`, width: `${r.width + 6}px`, height: `${r.height + 6}px` });
+        this.box.classList.toggle('is-fragile', this.current.quality === 'fragile');
+        this.valueEl.textContent = this.current.anchor;
+    }
+
+    pick(e) {
+        if (this.isOwn(e.target)) return;
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        if (e.target instanceof Element) this.finish(bestAnchor(e.target));
+    }
+
+    async finish(result) {
+        document.removeEventListener('mousemove', this.onMove, true);
+        document.removeEventListener('click', this.onClick, true);
+        ['mousedown', 'mouseup', 'pointerdown', 'pointerup', 'submit', 'dblclick'].forEach((t) => document.removeEventListener(t, this.onBlock, true));
+        document.removeEventListener('keydown', this.onKey, true);
+        this.box.remove();
+
+        if (result && window.opener) {
+            window.opener.postMessage({ type: 'champs-onboarding:pick', nonce: this.nonce, anchor: result.anchor, quality: result.quality }, window.location.origin);
+        }
+
+        if (this.exitParam) {
+            // sai da personificação (a sessão é a mesma da aba do admin)
+            try {
+                await fetch(`${window.location.pathname}?${encodeURIComponent(this.exitParam)}=_exit`, { credentials: 'same-origin', redirect: 'manual' });
+            } catch { /* segue fechando */ }
+        }
+
+        if (window.opener) {
+            window.close();
+            return;
+        }
+
+        // Sem aba de origem: mostra a âncora para copiar
+        this.bar.querySelector('span').textContent = result ? this.labels.pickCopy : this.labels.pickCancel;
+        this.bar.querySelector('button').remove();
+        if (result) this.valueEl.textContent = result.anchor;
+    }
+}
+
 let helpBound = false;
 
 export function initOnboarding(scope = document) {
@@ -622,7 +817,9 @@ export function initOnboarding(scope = document) {
     window.ChampsOnboarding = Onboarding;
 
     const params = new URLSearchParams(window.location.search);
-    if (params.get(PREVIEW_PARAM)) {
+    if (params.get(PICK_PARAM)) {
+        new AnchorPicker(params.get(PICK_PARAM), params.get(PICK_EXIT_PARAM), Onboarding.instance.labels).start();
+    } else if (params.get(PREVIEW_PARAM)) {
         Onboarding.instance.startPreview(params.get(PREVIEW_PARAM), parseInt(params.get(PREVIEW_STEP_PARAM) || '0', 10) || 0);
     } else if (strToBool(root.dataset.champsOnboardingAutostart, true)) {
         Onboarding.instance.autostart();

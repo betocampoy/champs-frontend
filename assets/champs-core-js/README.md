@@ -82,7 +82,7 @@ spinner `.spinner-border` e variáveis `--bs-*`, então segue o tema e o modo es
 | raiz | `data-champs-onboarding-url="/onboarding"` | prefixo dos endpoints (default `/onboarding`) |
 | raiz | `data-champs-onboarding-autostart="false"` | não busca tour ao carregar (default `true`) |
 | raiz | `data-champs-onboarding-labels='{"next":"Next"}'` | textos (JSON): `next`, `back`, `done`, `skip`, `close`, `help`, `of`, `chooseTour`, `noTours`, `otherPage` |
-| elemento destacado | `data-champs-tour="btn-importar"` | âncora do passo (`TourStep.anchor`) |
+| elemento destacado | `data-champs-tour="btn-importar"` | âncora do passo (`TourStep.anchor`); a âncora também pode ser um seletor CSS (ver abaixo) |
 | botão de ajuda | `data-champs-onboarding-help` | lista os tours da página (abre direto se houver um só) |
 | botão de ajuda | `data-champs-onboarding-help="slug"` | abre esse tour |
 
@@ -98,6 +98,22 @@ Comportamento:
 - 401 (deslogado): desiste em silêncio. O conteúdo do passo é texto (escapado); quebras de linha viram `<br>`.
 - Eventos em `document`: `champs:onboarding:start|step|complete|skip|error` (`detail: {tour, step, status, error}`).
 - API: `ChampsOnboarding.start(slug)`, `ChampsOnboarding.stop()`.
+- **Âncora:** texto simples (`btn-importar`) = `[data-champs-tour="btn-importar"]`; qualquer outra coisa
+  (começa com `#` `.` `[`, ou tem espaço, `>`, `=`, `:`) = seletor CSS (`#btn-exportar`,
+  `a[href="/app/clientes/grupos"]`). Vale o primeiro elemento **visível** (o menu duplicado no offcanvas não atrapalha).
+- **Âncoras automáticas (desde 1.9.0):** os componentes já saem com `data-champs-tour`, então dá para
+  montar tours sem mexer em template:
+  `field-<id do campo>` (todo `form_row` do `champs_theme` e as macros `ui.input/select/textarea/checkbox…`),
+  `btn-<id>` (`ui.button` com `attrs.id`), `page-title|actions|counter|view-toggle` (`_page_header`,
+  prefixo `tourPrefix`), `list-content`, `list-pager`, `search-<id>`, `card-<wrapperId>`,
+  `tab-<abas>-<aba>`, `section-<acordeão>-<seção>`, `notification-center`.
+  Nome explícito: `tour: 'meu-nome'` no cfg da macro; desligar: `tour: false` (macros) ou
+  `row_attr: {'data-champs-tour': false}` (form_row).
+- **Modo apontar** (`?champs_onboarding_pick=<nonce>`, aberto pelo "Apontar na tela" do admin): destaca o
+  elemento sob o mouse, o clique não dispara a ação da tela e devolve a melhor âncora para a aba de origem
+  (`postMessage`, mesma origem): `data-champs-tour` > `#id` > `[name]` > `a[href]` > `[data-champs-ajax-route]`
+  > `[aria-label]`/`[title]` > caminho no DOM (marcado como frágil). Com `champs_onboarding_exit=<param do
+  switch_user>` sai da personificação antes de fechar a aba. `bestAnchor(el)` é exportado.
 - **Modo teste** (botão "Testar tour" do admin): `?champs_onboarding_preview=<slug>` na URL carrega o
   tour por `{url}/admin/tours/preview/<slug>` e roda sem gravar nada (selo "Modo teste" no card, rótulo
   `preview` nos labels). Passos em outra tela levam o modo junto (`champs_onboarding_step=<n>`).
