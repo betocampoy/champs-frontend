@@ -61,6 +61,9 @@
  * - Lista carregada ao abrir
  * - Abertura automática opcional quando houver não lidas
  * - Ações: marcar como lida / excluir via Champs Ajax
+ * - Ações em massa opcionais no cabeçalho (marcar todas como lidas / excluir
+ *   todas), renderizadas pelo macro sidebar() com data-champs-notification-center-bulk;
+ *   o módulo só habilita/desabilita conforme a lista carregada
  * - Preparado para actions: domPatch / remove
  */
 
@@ -192,6 +195,9 @@ class NotificationCenter {
 
         this.counter = element.querySelector('[data-champs-notification-center-counter]');
         this.list = this.sidebar?.querySelector('[data-champs-notification-center-list]') || null;
+        this.bulkButtons = this.sidebar
+            ? Array.from(this.sidebar.querySelectorAll('[data-champs-notification-center-bulk]'))
+            : [];
 
         this.controller = null;
         this.refreshTimer = null;
@@ -511,11 +517,15 @@ class NotificationCenter {
 
         try {
             const data = await this.getJson(this.url);
+            const items = data.items || [];
+            const unread = this.resolveUnread(data);
 
-            this.updateCounter(this.resolveUnread(data));
-            this.renderItems(data.items || []);
+            this.updateCounter(unread);
+            this.renderItems(items);
+            this.updateBulkButtons(items.length, unread);
         } catch (error) {
             this.renderError(error.message);
+            this.updateBulkButtons(0, 0);
         } finally {
             this.isLoadingList = false;
         }
@@ -554,6 +564,22 @@ class NotificationCenter {
 
         this.counter.classList.toggle('d-none', hidden);
         this.counter.classList.toggle('champs-notification-counter-hidden', hidden);
+    }
+
+    /**
+     * Ações em massa do cabeçalho (macro sidebar(), opções markAllReadUrl /
+     * deleteAllUrl): "marcar todas como lidas" só faz sentido com não lidas;
+     * "excluir todas" só com algum item. Roda depois do fetch da lista, então
+     * prevalece sobre a reabilitação que o AjaxForm faz no fim do request.
+     */
+    updateBulkButtons(total, unread) {
+        this.bulkButtons.forEach((button) => {
+            const bulk = button.dataset.champsNotificationCenterBulk;
+            const enabled = bulk === 'mark-all-read' ? unread > 0 : total > 0;
+
+            button.disabled = !enabled;
+            button.classList.toggle('disabled', !enabled);
+        });
     }
 
     renderLoading() {

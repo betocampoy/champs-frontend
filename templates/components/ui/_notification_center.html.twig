@@ -46,23 +46,73 @@
     {% set title = options.title|default('Notificações') %}
     {% set position = options.position|default('end') %}
 
+    {# Ações em massa (opcionais): cada ícone só aparece se a URL for informada.
+       Disparadas via data-champs-ajax com module "notification-center", então o
+       NotificationCenter.js recarrega lista/contador no champs:ajax:success; ele
+       também habilita/desabilita os ícones conforme a lista carregada. #}
+    {% set markAllReadUrl = options.markAllReadUrl|default('') %}
+    {% set deleteAllUrl = options.deleteAllUrl|default('') %}
+    {% set markAllReadAction = options.markAllReadAction|default('notification-center-mark-all-read') %}
+    {% set deleteAllAction = options.deleteAllAction|default('notification-center-delete-all') %}
+    {% set markAllReadTitle = options.markAllReadTitle|default('Marcar todas como lidas') %}
+    {% set deleteAllTitle = options.deleteAllTitle|default('Excluir todas') %}
+    {% set deleteAllConfirm = options.deleteAllConfirm|default('Deseja excluir todas as notificações?') %}
+    {% set closeLabel = options.closeLabel|default('Fechar') %}
+
     <div
             id="{{ id }}"
             class="offcanvas offcanvas-{{ position }}"
             tabindex="-1"
             aria-labelledby="{{ id }}Label"
     >
-        <div class="offcanvas-header border-bottom">
-            <h5 class="offcanvas-title" id="{{ id }}Label">
+        <div class="offcanvas-header border-bottom gap-2">
+            <h5 class="offcanvas-title me-auto" id="{{ id }}Label">
                 {{ title }}
             </h5>
 
+            {% if markAllReadUrl %}
+                <button
+                        type="button"
+                        class="btn btn-sm btn-link text-secondary p-1"
+                        title="{{ markAllReadTitle }}"
+                        aria-label="{{ markAllReadTitle }}"
+                        disabled
+                        data-champs-notification-center-bulk="mark-all-read"
+                        data-champs-ajax="true"
+                        data-champs-ajax-module="notification-center"
+                        data-champs-ajax-route="{{ markAllReadUrl }}"
+                        data-champs-ajax-field-action="{{ markAllReadAction }}"
+                        data-champs-loader-target="#{{ id }} [data-champs-notification-center-list]"
+                >
+                    <i class="bi {{ options.markAllReadIcon|default('bi-check2-all') }} fs-5"></i>
+                </button>
+            {% endif %}
+
+            {% if deleteAllUrl %}
+                <button
+                        type="button"
+                        class="btn btn-sm btn-link text-danger p-1"
+                        title="{{ deleteAllTitle }}"
+                        aria-label="{{ deleteAllTitle }}"
+                        disabled
+                        data-champs-notification-center-bulk="delete-all"
+                        data-champs-ajax="true"
+                        data-champs-ajax-module="notification-center"
+                        data-champs-ajax-route="{{ deleteAllUrl }}"
+                        data-champs-ajax-field-action="{{ deleteAllAction }}"
+                        data-champs-ajax-confirm="{{ deleteAllConfirm }}"
+                        data-champs-loader-target="#{{ id }} [data-champs-notification-center-list]"
+                >
+                    <i class="bi {{ options.deleteAllIcon|default('bi-trash') }} fs-5"></i>
+                </button>
+            {% endif %}
+
             <button
                     type="button"
-                    class="btn-close"
+                    class="btn-close ms-1"
                     data-bs-dismiss="offcanvas"
                     data-champs-notification-center-close
-                    aria-label="Fechar"
+                    aria-label="{{ closeLabel }}"
             ></button>
         </div>
 

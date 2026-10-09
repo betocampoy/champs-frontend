@@ -325,7 +325,7 @@ Para documentação detalhada de cada módulo, consulte [`assets/champs-core-js/
 | `AutoOpen` | `modules/AutoOpen.js` | Abertura automática de elementos no carregamento |
 | `Loader` | `modules/Loader.js` | Indicador de carregamento |
 | `Message` | `modules/Message.js` | Sistema de toast/mensagens globais |
-| `NotificationCenter` | `modules/NotificationCenter.js` | Central de notificações in-app |
+| `NotificationCenter` | `modules/NotificationCenter.js` | Central de notificações in-app (ações em massa opcionais no cabeçalho via `sidebar({markAllReadUrl, deleteAllUrl})`) |
 | `NavLoader` | `modules/NavLoader.js` | Loader durante navegação entre páginas |
 | `TabsPersistence` | `modules/TabsPersistence.js` | Persistência da aba ativa (Bootstrap Tabs) |
 | `FormSectionsPersistence` | `modules/FormSectionsPersistence.js` | Persistência de seções colapsadas |
