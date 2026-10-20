@@ -32,6 +32,9 @@
  * - Passo em outra rota: grava e navega para a url do passo; ao carregar
  *   a outra página o tour é retomado (GET /tour devolve o tour em andamento).
  * - Tour obrigatório: sem "Pular", sem fechar.
+ * - Tour condicional (GET /tour devolve em "waiting" {tour, condition}): a tela é observada
+ *   (MutationObserver) e o tour só começa (POST /begin) quando o elemento da condição
+ *   aparecer visível e não houver outro tour aberto. No "?", só aparece com o elemento na tela.
  * - Âncora não encontrada: o passo aparece centralizado (console.warn).
  * - 401: desiste em silêncio. Conteúdo do passo é texto (escapado), quebras de linha viram <br>.
  */
@@ -161,6 +164,9 @@ export default class Onboarding {
         this.tour = null;   // payload do servidor
         this.index = 0;     // posição exibida
         this.preview = false; // "Testar tour" do admin: não grava progresso
+        this.waiting = [];    // tours condicionais esperando o elemento aparecer
+        this.observer = null;
+        this.beginning = false;
         this.layer = null;
         this.onReposition = () => this.position();
         this.onKeydown = (e) => this.handleKey(e);
@@ -210,6 +216,8 @@ export default class Onboarding {
         try {
             const data = await this.request(`/tour?route=${encodeURIComponent(this.route)}`);
             if (data.tour) this.open(data.tour);
+            this.waiting = Array.isArray(data.waiting) ? data.waiting : [];
+            this.watchWaiting();
         } catch (e) {
             this.fail(e);
         }
@@ -236,8 +244,10 @@ export default class Onboarding {
         if (slug) return this.startManual(slug);
 
         try {
-            const { tours } = await this.request(`/available?route=${encodeURIComponent(this.route)}`);
-            if (!tours?.length) return this.showMessage(this.labels.noTours);
+            const all = (await this.request(`/available?route=${encodeURIComponent(this.route)}`)).tours || [];
+            // tour condicional só aparece com o elemento da condição na tela
+            const tours = all.filter((t) => this.conditionMet(t.condition));
+            if (!tours.length) return this.showMessage(this.labels.noTours);
             if (tours.length === 1) return this.startManual(tours[0].slug);
             this.showChooser(tours);
         } catch (e) {
@@ -333,10 +343,62 @@ export default class Onboarding {
         document.removeEventListener('keydown', this.onKeydown);
         clearInterval(this.anchorRetry);
         clearTimeout(this.settleTimer);
+        const wasOpen = !!this.layer;
         this.layer?.remove();
         this.layer = null;
         this.tour = null;
         this.preview = false;
+        // tour fechado: um condicional que esperava a vez pode abrir agora
+        if (wasOpen && this.waiting.length) setTimeout(() => this.checkWaiting(), 0);
+    }
+
+    // ------------------------------------------------------------ tours condicionais
+
+    /**
+     * Tours condicionais ({tour, condition}) só começam quando o elemento da condição
+     * aparece na tela (lista carregada por ajax, primeiro registro criado...). A tela é
+     * observada enquanto estiver aberta; o servidor só marca o tour como iniciado no /begin.
+     */
+    watchWaiting() {
+        if (!this.waiting.length || this.observer) return;
+
+        let scheduled = false;
+        this.observer = new MutationObserver(() => {
+            if (scheduled) return;
+            scheduled = true;
+            setTimeout(() => { scheduled = false; this.checkWaiting(); }, 250);
+        });
+        this.observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style', 'hidden'] });
+        this.checkWaiting();
+    }
+
+    async checkWaiting() {
+        if (this.layer || this.beginning || !this.waiting.length) return; // um tour por vez
+
+        const ready = this.waiting.find((w) => this.conditionMet(w.condition));
+        if (!ready) return;
+
+        this.waiting = this.waiting.filter((w) => w !== ready);
+        if (!this.waiting.length) {
+            this.observer?.disconnect();
+            this.observer = null;
+        }
+
+        this.beginning = true;
+        try {
+            const data = await this.request('/begin', { method: 'POST', body: { tour: ready.tour } });
+            if (data.tour && !this.layer) this.open(data.tour);
+        } catch (e) {
+            this.fail(e);
+        } finally {
+            this.beginning = false;
+        }
+        if (!this.layer) this.checkWaiting();
+    }
+
+    /** Sem condição = sempre; com condição = o elemento existe e está visível. */
+    conditionMet(condition) {
+        return !condition || !!this.findAnchor({ anchor: condition }, true);
     }
 
     get step() {

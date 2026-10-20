@@ -89,6 +89,10 @@ spinner `.spinner-border` e variáveis `--bs-*`, então segue o tema e o modo es
 Comportamento:
 
 - Ao carregar, busca o tour da rota (`GET /tour?route=`): retoma um em andamento ou inicia um ainda não visto.
+- **Tour condicional** (desde 1.12.0, bundle ≥ 0.6): a resposta traz `waiting: [{tour, condition}]`. A tela é
+  observada (`MutationObserver`) enquanto estiver aberta e o tour só começa (`POST /begin`) quando o elemento da
+  `condition` (mesmo formato da âncora) aparece visível e não há outro tour aberto. No botão "?", o tour
+  condicional só é oferecido com o elemento na tela.
 - **Próximo/Concluir** grava no servidor (`POST /progress` com cabeçalho `X-Champs-Ajax`); **Voltar** é só local.
 - Uma ação por vez: enquanto o servidor não responde, o botão mostra spinner e os outros ficam desabilitados.
 - Passo em outra rota: grava e navega para a `url` do passo; a outra página retoma o tour.
