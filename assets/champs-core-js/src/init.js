@@ -25,6 +25,7 @@ import { initPushManager } from './modules/PushManager.js';
 import { initFilePaste } from './modules/FilePaste.js';
 import { initScrollAnchor } from './modules/ScrollAnchor.js';
 import { initOnboarding } from './modules/Onboarding.js';
+import { initCaptcha } from './modules/Captcha.js';
 
 export function initCore(scope = document) {
     initLoader(scope);
@@ -39,6 +40,7 @@ export function initCore(scope = document) {
     initValueSync(scope);
     initAjaxForm(scope);
     initAjaxPoll(scope); // depois do AjaxForm: usa o handleAjax dele
+    initCaptcha(scope); // só carrega a API da Cloudflare se houver widget na página
     initDatalist(scope);
     initConsentManager(scope);
     initPreferenceManager(scope);

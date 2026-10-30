@@ -5,7 +5,7 @@
         <h4 class="mb-1" data-champs-tour="{{ tourPrefix }}-title">{{ title|default('Listagem') }}</h4>
 
         {% if subtitle is defined and subtitle %}
-            <div class="text-muted small">{{ subtitle|raw }}</div>
+            <div class="text-muted small"{% if subtitleId is defined and subtitleId %} id="{{ subtitleId }}"{% endif %}>{{ subtitle|raw }}</div>
         {% endif %}
     </div>
 

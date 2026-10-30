@@ -268,6 +268,29 @@ Os templates ficam na `vendor/` e são acessados pelo namespace `@ChampsFrontend
 
 ---
 
+#### `_captcha.html.twig` — Cloudflare Turnstile
+
+Widget de captcha para formulário público (cadastro, login por link). O módulo JS `Captcha` desenha
+o widget; o servidor confere com o `TurnstileVerifier` ([PHP: Captcha](#php-captcha-turnstileverifier)).
+
+```twig
+{% include '@ChampsFrontend/components/ui/_captcha.html.twig' with {
+    siteKey: turnstile_site_key,
+    language: app.request.locale,
+    action: 'cadastro'
+} only %}
+```
+
+| Prop | Padrão | Valores |
+|---|---|---|
+| `siteKey` | (obrigatória) | chave pública do widget |
+| `theme` | `auto` | `auto`, `light`, `dark` |
+| `size` | `flexible` | `flexible`, `normal`, `compact` |
+| `language` | `auto` | `auto` ou o locale (`pt_BR` vira `pt-br`) |
+| `action` | — | rótulo da ação no painel da Cloudflare |
+
+---
+
 ### Lista
 
 Templates para construção de páginas de listagem.
@@ -290,6 +313,8 @@ Templates para construção de páginas de listagem.
     subtitle: 'Lista de usuários cadastrados no sistema'
 } only %}
 ```
+
+`subtitleId` (opcional) põe um `id` no subtítulo, para o backend atualizá-lo via DomPatch.
 
 ---
 
@@ -333,6 +358,7 @@ Para documentação detalhada de cada módulo, consulte [`assets/champs-core-js/
 | `ConsentManager` | `modules/ConsentManager.js` | Consentimento de cookies (LGPD) |
 | `DynamicColspan` | `modules/DynamicColspan.js` | Colspan automático em tabelas |
 | `Calc` | `modules/Calc.js` | Cálculos dinâmicos em formulários |
+| `Captcha` | `modules/Captcha.js` | Widget do Cloudflare Turnstile (`data-champs-captcha`); carrega a API só se houver widget e reinicia o token após envio ajax |
 | `PushManager` | `modules/PushManager.js` | Notificações Push via Firebase FCM |
 
 ### Exemplos rápidos
@@ -392,6 +418,9 @@ Para documentação detalhada de cada módulo, consulte [`assets/champs-core-js/
     <input type="text" name="codigo" autofocus autocomplete="off">
 </form>
 ```
+
+Num `<form>`, sem `data-champs-ajax-route`/`data-champs-ajax-method` valem o `action` e o
+`method` do próprio form.
 
 Sem `data-champs-ajax-queue`, um submit disparado enquanto o anterior ainda
 está em voo é simplesmente descartado. Com a fila ativada, cada submit tira
@@ -566,6 +595,48 @@ php bin/console app:push:notificar \
   --mensagem="Você tem tarefas pendentes para hoje." \
   --link="/agenda/todos"
 ```
+
+---
+
+## PHP: Captcha (TurnstileVerifier)
+
+Confere no Cloudflare Turnstile o token que o widget (`_captcha.html.twig` + módulo `Captcha`)
+grava no campo `cf-turnstile-response`. PHP puro com curl: serve no Symfony e no legado.
+
+```php
+use BetoCampoy\Champs\Frontend\Captcha\TurnstileVerifier;
+
+$verifier = new TurnstileVerifier($secretKey);
+$token = $_POST[$verifier->responseFieldName()] ?? null;
+
+if (!$verifier->verify($token, $clientIp)) {
+    // recusado: $verifier->lastErrorCodes() traz o motivo para log
+}
+```
+
+- **Fail closed:** secret vazia, token vazio, falha de rede ou resposta inválida da Cloudflare
+  contam como recusa. Os códigos (`missing-input-secret`, `network-error`,
+  `timeout-or-duplicate`...) ficam em `lastErrorCodes()`.
+- **Token de uso único.** Depois de um envio ajax, o módulo JS gera outro sozinho.
+- **Symfony:** registre o serviço com a secret e dependa de `CaptchaVerifierInterface`. Nos testes,
+  troque o alias por um verificador fixo, sem rede.
+
+```yaml
+BetoCampoy\Champs\Frontend\Captcha\TurnstileVerifier:
+    arguments:
+        $secretKey: '%env(string:TURNSTILE_SECRET_KEY)%'
+BetoCampoy\Champs\Frontend\Captcha\CaptchaVerifierInterface: '@BetoCampoy\Champs\Frontend\Captcha\TurnstileVerifier'
+```
+
+**Chaves de teste da Cloudflare** (não fazem desafio real):
+
+| | Sempre passa | Sempre falha |
+|---|---|---|
+| Site key | `1x00000000000000000000AA` | `2x00000000000000000000AB` |
+| Secret | `1x0000000000000000000000000000000AA` | `2x0000000000000000000000000000000AA` |
+
+O widget real só funciona nos hostnames cadastrados no painel (Turnstile → widget → Hostnames).
+Para desenvolver em `localhost`, cadastre-o lá ou use as chaves de teste.
 
 ---
 

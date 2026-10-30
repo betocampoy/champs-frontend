@@ -1173,8 +1173,8 @@ const FIELD_ATTR_PREFIX = 'data-champs-ajax-field-';
 function buildFormData(triggerEl) {
     const configSource = getAjaxConfigSource(triggerEl);
 
-    const route = configSource.getAttribute('data-champs-ajax-route') || '';
-    const method = (configSource.getAttribute('data-champs-ajax-method') || 'POST').toUpperCase();
+    const route = configSource.getAttribute('data-champs-ajax-route') || configSource.getAttribute('action') || '';
+    const method = (configSource.getAttribute('data-champs-ajax-method') || configSource.getAttribute('method') || 'POST').toUpperCase();
 
     const isFormSubmit = !!triggerEl.__champsAjaxFormRef;
 

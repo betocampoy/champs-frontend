@@ -1,0 +1,21 @@
+{# Widget do Cloudflare Turnstile. Quem desenha é o módulo JS Captcha (carrega a API da
+  Cloudflare sob demanda); o token vai no campo POST "cf-turnstile-response" do form.
+  Servidor confere com BetoCampoy\Champs\Frontend\Captcha\TurnstileVerifier.
+
+  props:
+  siteKey (string)            chave pública do widget (obrigatória)
+  theme (string|null)         auto (padrão) | light | dark
+  size (string|null)          flexible (padrão, ocupa a largura do form) | normal | compact
+  language (string|null)      auto (padrão) | pt_BR, en, es... (aceita o locale do Symfony)
+  action (string|null)        rótulo da ação no painel da Cloudflare (ex.: cadastro)
+  class (string|null)
+#}
+{% set captchaLanguage = (language is defined and language) ? language|replace({'_': '-'})|lower : 'auto' %}
+<div class="champs-captcha {{ class|default('') }}"
+     data-champs-captcha
+     data-sitekey="{{ siteKey }}"
+     data-theme="{{ theme|default('auto') }}"
+     data-size="{{ size|default('flexible') }}"
+     data-language="{{ captchaLanguage }}"
+     {% if action is defined and action %}data-action="{{ action }}"{% endif %}
+></div>

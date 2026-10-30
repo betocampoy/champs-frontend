@@ -43,6 +43,22 @@ servem.
 
 ------------------------------------------------------------------------
 
+## Modulo: Captcha
+
+| Atributo | Função |
+|---|---|
+| `data-champs-captcha` | Container do widget Cloudflare Turnstile (use o template `_captcha.html.twig`) |
+| `data-sitekey` | Chave pública do widget (obrigatória) |
+| `data-theme` | `auto` (padrão), `light`, `dark` |
+| `data-size` | `flexible` (padrão), `normal`, `compact` |
+| `data-language` | `auto` (padrão) ou código do idioma (`pt-br`, `en`, `es`) |
+| `data-action` | Rótulo da ação no painel da Cloudflare |
+
+Evento: `champs:captcha:error` (bubbles, `detail.code`). Após `champs:ajax:end` o widget do form
+é reiniciado (token de uso único).
+
+------------------------------------------------------------------------
+
 ## Modulo: CheckboxGroup
 
  Atributo                      | Função
