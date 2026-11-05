@@ -75,6 +75,7 @@
     {%- endif -%}
 
     {{ ui.input({
+        col: col|default('col-12'),
         style: formStyle,
         type: inputType|default('text'),
         name: form.vars.full_name,
@@ -120,6 +121,7 @@
     {%- endif -%}
 
     {{ ui.textarea({
+        col: col|default('col-12'),
         style: formStyle,
         name: form.vars.full_name,
         id: form.vars.id,
@@ -218,6 +220,7 @@
             {%- endif -%}
 
             {{ ui.select({
+                col: col|default('col-12'),
                 style: formStyle,
                 name: form.vars.full_name,
                 id: form.vars.id,
