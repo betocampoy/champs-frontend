@@ -91,6 +91,23 @@ function takePreviewResume() {
     }
 }
 
+/**
+ * Âncora dentro de um menu suspenso do Bootstrap que está fechado (ex.: o menu do usuário): abre o menu e devolve o
+ * elemento, se ficou visível. Sem window.bootstrap, não faz nada (o passo segue centralizado, como antes).
+ */
+function revealInDropdown(candidates) {
+    const Dropdown = window.bootstrap?.Dropdown;
+    if (!Dropdown) return null;
+    for (const el of candidates) {
+        const menu = el.closest('.dropdown-menu');
+        const toggle = menu?.parentElement?.querySelector(':scope > [data-bs-toggle="dropdown"]');
+        if (!toggle) continue;
+        Dropdown.getOrCreateInstance(toggle).show();
+        if (isVisible(el)) return el;
+    }
+    return null;
+}
+
 function isVisible(el) {
     if (!el.isConnected) return false;
     const r = el.getBoundingClientRect();
@@ -543,7 +560,8 @@ export default class Onboarding {
             return null;
         }
 
-        const el = found.find(isVisible) || null;
+        // item de um menu suspenso fechado: o tour abre o menu (cada passo reabre, já que um clique fora o fecha)
+        const el = found.find(isVisible) || revealInDropdown(found) || null;
         if (!el && !quiet) console.warn(`[Onboarding] âncora "${step.anchor}" não encontrada (ou oculta); passo exibido centralizado.`);
         return el;
     }
