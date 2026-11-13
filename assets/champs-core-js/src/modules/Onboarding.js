@@ -120,7 +120,8 @@ function ensureStyles() {
             transition: top .2s ease, left .2s ease;
         }
         .champs-onboarding-card .card-text { white-space: normal; }
-        .champs-onboarding-pickbar { position: fixed; top: 0; left: 0; right: 0; z-index: ${Z_INDEX + 1}; }
+        .champs-onboarding-pickbar { position: fixed; bottom: 0; left: 0; right: 0; z-index: ${Z_INDEX + 1}; }
+        .champs-onboarding-pickbar.is-top { bottom: auto; top: 0; }
         .champs-onboarding-pickbox {
             position: fixed; z-index: ${Z_INDEX}; pointer-events: none;
             outline: 2px solid var(--bs-primary, #0d6efd); background: rgba(13, 110, 253, .08);
@@ -1076,6 +1077,17 @@ class AnchorPicker {
     /** Ctrl/Cmd pressionado: destaque "armado" (o próximo clique escolhe). */
     arm(on) {
         this.box?.classList.toggle('is-armed', !!on);
+        if (on) this.dodge();
+    }
+
+    /**
+     * A barra fica no rodapé e, com Ctrl/Cmd pressionado e o ponteiro em cima dela, troca de lado: assim nunca cobre o
+     * elemento a escolher (menus e cabeçalhos no topo, rodapés embaixo). Sem a tecla ela fica parada, para o "Cancelar".
+     */
+    dodge() {
+        if (!this.bar || this.pointerY === undefined) return;
+        const r = this.bar.getBoundingClientRect();
+        if (this.pointerY >= r.top && this.pointerY <= r.bottom) this.bar.classList.toggle('is-top');
     }
 
     isOwn(node) {
@@ -1083,6 +1095,7 @@ class AnchorPicker {
     }
 
     hover(e) {
+        this.pointerY = e.clientY;
         this.arm(this.isGesture(e));
         if (this.isOwn(e.target) || !(e.target instanceof Element)) return;
         this.current = bestAnchor(e.target);
